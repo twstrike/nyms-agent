@@ -6,7 +6,7 @@ import (
 
 	"github.com/nymsio/nyms-agent/keymgr"
 
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 )
 
 func populateKeyInfo(k *openpgp.Entity, info *GetKeyInfoResult) {

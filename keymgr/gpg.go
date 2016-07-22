@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 )
 
 const pubring = ".gnupg/pubring.gpg"

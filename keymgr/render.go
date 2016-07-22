@@ -7,8 +7,8 @@ import (
 	"crypto/dsa"
 	"crypto/rsa"
 
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/packet"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/packet"
 )
 
 func RenderKey(e *openpgp.Entity) string {

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 
 	"github.com/nymsio/nyms-agent/keymgr"
 	gl "github.com/op/go-logging"

@@ -12,9 +12,9 @@ import (
 	"github.com/nymsio/pgpmail"
 	gl "github.com/op/go-logging"
 
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/armor"
-	"code.google.com/p/go.crypto/openpgp/packet"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp/packet"
 )
 
 const publicKeyArmorHeader = "PGP PUBLIC KEY BLOCK"
