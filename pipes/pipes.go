@@ -3,14 +3,12 @@ package pipes
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
-	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/protocol"
 )
-
-var logger = gl.MustGetLogger("nymsd")
 
 type pipePair struct {
 	input  io.ReadCloser
@@ -42,11 +40,12 @@ func RunPipeServer(r io.ReadCloser, w io.WriteCloser, protoDebug bool) {
 	protocol := new(protocol.Protocol)
 	rpc.Register(protocol)
 	if err != nil {
-		logger.Warning(fmt.Sprintf("Failed to create pipe pair: %s", err))
+		log.Println(fmt.Sprintf("Failed to create pipe pair: %s", err))
 		return
 	}
 	codec := jsonrpc.NewServerCodec(pp)
-	logger.Info("Starting...")
+	log.Println("Starting...")
+	defer pp.Close()
 	rpc.ServeCodec(codec)
 }
 
@@ -56,15 +55,5 @@ func NewClient(r io.ReadCloser, w io.WriteCloser, protoDebug bool) *rpc.Client {
 }
 
 func createPipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) (io.ReadWriteCloser, error) {
-	/*
-		if protoDebug {
-			logger.Info("Creating debug pipes")
-			reader, writer, err := logger.OpenProtocolLog(r, w)
-			if err != nil {
-				return nil, err
-			}
-			return &pipePair{reader, writer}, nil
-		}
-	*/
 	return &pipePair{r, w}, nil
 }
