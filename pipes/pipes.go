@@ -37,15 +37,15 @@ func (pp pipePair) Close() (e error) {
 
 func RunPipeServer(r io.ReadCloser, w io.WriteCloser, protoDebug bool) {
 	pp, err := createPipePair(r, w, protoDebug)
+	defer pp.Close()
 	protocol := new(protocol.Protocol)
 	rpc.Register(protocol)
 	if err != nil {
-		log.Println(fmt.Sprintf("Failed to create pipe pair: %s", err))
+		log.Fatal(fmt.Sprintf("Failed to create pipe pair: %s", err))
 		return
 	}
 	codec := jsonrpc.NewServerCodec(pp)
 	log.Println("Starting...")
-	defer pp.Close()
 	rpc.ServeCodec(codec)
 }
 

@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/crypto/openpgp"
 
-	"github.com/twstrike/nyms-agent/keymgr"
 	gl "github.com/op/go-logging"
+	"github.com/twstrike/nyms-agent/keymgr"
 )
 
 var logger = gl.MustGetLogger("nymsd")
@@ -27,6 +27,36 @@ const protocolVersion = 1
 func (*Protocol) Version(_ VoidArg, result *int) error {
 	logger.Info("Processing Version")
 	*result = protocolVersion
+	return nil
+}
+
+//
+// Protocol.GetKeyRing
+//
+
+type GetKeyRingResult struct {
+	Keys []GetKeyInfoResult
+}
+
+func (*Protocol) GetPublicKeyRing(_ VoidArg, result *GetKeyRingResult) error {
+	logger.Info("Processing GetPublicKeyRing")
+	if kr := keymgr.KeySource().GetPublicKeyRing(); kr != nil {
+		result.Keys = make([]GetKeyInfoResult, len(kr))
+		for k := range kr {
+			populateKeyInfo(kr[k], &result.Keys[k])
+		}
+	}
+	return nil
+}
+
+func (*Protocol) GetSecretKeyRing(_ VoidArg, result *GetKeyRingResult) error {
+	logger.Info("Processing GetPublicKeyRing")
+	if kr := keymgr.KeySource().GetSecretKeyRing(); kr != nil {
+		result.Keys = make([]GetKeyInfoResult, len(kr))
+		for k := range kr {
+			populateKeyInfo(kr[k], &result.Keys[k])
+		}
+	}
 	return nil
 }
 

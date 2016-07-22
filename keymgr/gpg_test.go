@@ -8,7 +8,7 @@ import (
 )
 
 func TestLocalKeyring(t *testing.T) {
-	k, err := KeySource().GetSecretKey("sgmaildemo@subgraph.com")
+	k, err := KeySource().GetSecretKey("fan.torchz@gmail.com")
 	if err != nil {
 		t.Error("error looking up key")
 	}

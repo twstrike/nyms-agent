@@ -15,10 +15,18 @@ func main() {
 		log.Fatal(err)
 	}
 	c := pipes.NewClient(conn, conn, true)
-	var reply int
-	err = c.Call("Protocol.Version", protocol.VoidArg{}, &reply)
+
+	var version int
+	err = c.Call("Protocol.Version", protocol.VoidArg{}, &version)
 	if err != nil {
-		log.Fatal("arith error:", err)
+		log.Fatal("Version error:", err)
 	}
-	fmt.Println("reply:", reply)
+	fmt.Println("version:", version)
+
+	var pubKeyRing protocol.GetKeyRingResult
+	err = c.Call("Protocol.GetPublicKeyRing", protocol.VoidArg{}, &pubKeyRing)
+	if err != nil {
+		log.Fatal("GetPublicKeyRing error:", err)
+	}
+	fmt.Printf("pubKeyRing: %v\n", pubKeyRing)
 }
