@@ -51,7 +51,7 @@ func runPipeServer(protoDebug bool) {
 	rpc.ServeCodec(codec)
 }
 
-func createPipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) (*pipePair, error) {
+func createPipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) (io.ReadWriteCloser, error) {
 	/*
 		if protoDebug {
 			logger.Info("Creating debug pipes")
