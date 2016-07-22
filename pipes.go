@@ -7,15 +7,15 @@ import (
 	"net/rpc/jsonrpc"
 	"os"
 
-	"github.com/twstrike/nyms-agent/protocol"
 	gl "github.com/op/go-logging"
+	"github.com/twstrike/nyms-agent/protocol"
 )
 
 var logger = gl.MustGetLogger("nymsd")
 
 type pipePair struct {
-	input  io.Reader
-	output io.Writer
+	input  io.ReadCloser
+	output io.WriteCloser
 }
 
 func (pp pipePair) Read(p []byte) (int, error) {
@@ -27,21 +27,15 @@ func (pp pipePair) Write(p []byte) (int, error) {
 }
 
 func (pp pipePair) Close() (e error) {
-	if err := tryClose(pp.input); err != nil {
+	if err := pp.input.Close(); err != nil {
 		e = err
 	}
-	if err := tryClose(pp.output); err != nil && e == nil {
+
+	if err := pp.output.Close(); err != nil && e == nil {
 		e = err
 	}
 
 	return e
-}
-
-func tryClose(x interface{}) error {
-	if c, ok := x.(io.Closer); ok {
-		return c.Close()
-	}
-	return nil
 }
 
 func runPipeServer(protoDebug bool) {
@@ -57,7 +51,7 @@ func runPipeServer(protoDebug bool) {
 	rpc.ServeCodec(codec)
 }
 
-func createPipePair(r io.Reader, w io.Writer, protoDebug bool) (*pipePair, error) {
+func createPipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) (*pipePair, error) {
 	/*
 		if protoDebug {
 			logger.Info("Creating debug pipes")
