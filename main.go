@@ -25,6 +25,7 @@ func main() {
 	keymgr.LoadDefaultKeyring()
 	if pipe {
 		pp := pipes.CreatePipePair(os.Stdin, os.Stdout, protoDebug)
+		defer pp.Close()
 		log.Println("Listening on Stdin ...")
 		for {
 			go pipes.Serve(pp, protoDebug)
@@ -35,6 +36,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer l.Close()
 		for {
 			conn, err := l.Accept()
 			if err != nil {
