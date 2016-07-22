@@ -9,8 +9,8 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/twstrike/nyms-agent/keymgr"
 	gl "github.com/op/go-logging"
+	"github.com/twstrike/nyms-agent/keymgr"
 )
 
 var pipe bool
