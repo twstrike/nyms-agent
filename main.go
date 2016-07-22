@@ -24,11 +24,14 @@ func init() {
 func main() {
 	keymgr.LoadDefaultKeyring()
 	if pipe {
-		pipes.RunPipeServer(os.Stdin, os.Stdout, protoDebug)
-		return
+		pp := pipes.CreatePipePair(os.Stdin, os.Stdout, protoDebug)
+		log.Println("Listening on Stdin ...")
+		for {
+			go pipes.Serve(pp, protoDebug)
+		}
 	} else if daemon {
-		l, err := net.Listen("unix", "/tmp/nyms")
-		defer l.Close()
+		log.Println("Listening on /tmp/nyms.sock ...")
+		l, err := net.Listen("unix", "/tmp/nyms.sock")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -37,7 +40,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			go pipes.RunPipeServer(conn, conn, protoDebug)
+			go pipes.Serve(conn, protoDebug)
 		}
 	}
 }

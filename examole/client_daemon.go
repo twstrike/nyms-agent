@@ -10,11 +10,12 @@ import (
 )
 
 func main() {
-	conn, err := net.Dial("unix", "/tmp/nyms")
+	conn, err := net.Dial("unix", "/tmp/nyms.sock")
+	defer conn.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	c := pipes.NewClient(conn, conn, true)
+	c := pipes.NewClient(conn)
 
 	var version int
 	err = c.Call("Protocol.Version", protocol.VoidArg{}, &version)

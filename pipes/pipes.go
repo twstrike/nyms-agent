@@ -1,9 +1,7 @@
 package pipes
 
 import (
-	"fmt"
 	"io"
-	"log"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
@@ -35,25 +33,18 @@ func (pp pipePair) Close() (e error) {
 	return e
 }
 
-func RunPipeServer(r io.ReadCloser, w io.WriteCloser, protoDebug bool) {
-	pp, err := createPipePair(r, w, protoDebug)
-	defer pp.Close()
+func Serve(conn io.ReadWriteCloser, protoDebug bool) {
+	defer conn.Close()
 	protocol := new(protocol.Protocol)
 	rpc.Register(protocol)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to create pipe pair: %s", err))
-		return
-	}
-	codec := jsonrpc.NewServerCodec(pp)
-	log.Println("Starting...")
+	codec := jsonrpc.NewServerCodec(conn)
 	rpc.ServeCodec(codec)
 }
 
-func NewClient(r io.ReadCloser, w io.WriteCloser, protoDebug bool) *rpc.Client {
-	pp, _ := createPipePair(r, w, protoDebug)
-	return jsonrpc.NewClient(pp)
+func NewClient(conn io.ReadWriteCloser) *rpc.Client {
+	return jsonrpc.NewClient(conn)
 }
 
-func createPipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) (io.ReadWriteCloser, error) {
-	return &pipePair{r, w}, nil
+func CreatePipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) io.ReadWriteCloser {
+	return &pipePair{r, w}
 }
