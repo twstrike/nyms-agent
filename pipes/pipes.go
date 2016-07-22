@@ -1,11 +1,10 @@
-package main
+package pipes
 
 import (
 	"fmt"
 	"io"
 	"net/rpc"
 	"net/rpc/jsonrpc"
-	"os"
 
 	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/protocol"
@@ -38,10 +37,10 @@ func (pp pipePair) Close() (e error) {
 	return e
 }
 
-func runPipeServer(protoDebug bool) {
+func RunPipeServer(r io.ReadCloser, w io.WriteCloser, protoDebug bool) {
+	pp, err := createPipePair(r, w, protoDebug)
 	protocol := new(protocol.Protocol)
 	rpc.Register(protocol)
-	pp, err := createPipePair(os.Stdin, os.Stdout, protoDebug)
 	if err != nil {
 		logger.Warning(fmt.Sprintf("Failed to create pipe pair: %s", err))
 		return
@@ -49,6 +48,11 @@ func runPipeServer(protoDebug bool) {
 	codec := jsonrpc.NewServerCodec(pp)
 	logger.Info("Starting...")
 	rpc.ServeCodec(codec)
+}
+
+func NewClient(r io.ReadCloser, w io.WriteCloser, protoDebug bool) *rpc.Client {
+	pp, _ := createPipePair(r, w, protoDebug)
+	return jsonrpc.NewClient(pp)
 }
 
 func createPipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) (io.ReadWriteCloser, error) {

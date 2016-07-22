@@ -11,6 +11,7 @@ import (
 
 	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/keymgr"
+	"github.com/twstrike/nyms-agent/pipes"
 )
 
 var pipe bool
@@ -26,7 +27,7 @@ func main() {
 	createLogger()
 	if pipe {
 		keymgr.LoadDefaultKeyring()
-		runPipeServer(protoDebug)
+		pipes.RunPipeServer(os.Stdin, os.Stdout, protoDebug)
 		return
 	}
 }
