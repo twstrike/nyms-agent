@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/nymsio/pgpmail"
+	"github.com/twstrike/pgpmail"
 	gl "github.com/op/go-logging"
 
 	"golang.org/x/crypto/openpgp"

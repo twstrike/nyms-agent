@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/crypto/openpgp"
 
-	"github.com/nymsio/nyms-agent/keymgr"
+	"github.com/twstrike/nyms-agent/keymgr"
 	gl "github.com/op/go-logging"
 )
 

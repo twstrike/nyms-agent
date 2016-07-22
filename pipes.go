@@ -7,7 +7,7 @@ import (
 	"net/rpc/jsonrpc"
 	"os"
 
-	"github.com/nymsio/nyms-agent/protocol"
+	"github.com/twstrike/nyms-agent/protocol"
 	gl "github.com/op/go-logging"
 )
 

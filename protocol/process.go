@@ -4,8 +4,8 @@ import (
 	"mime"
 	"strings"
 
-	"github.com/nymsio/nyms-agent/keymgr"
-	"github.com/nymsio/pgpmail"
+	"github.com/twstrike/nyms-agent/keymgr"
+	"github.com/twstrike/pgpmail"
 )
 
 func processIncomingMail(body string, result *ProcessIncomingResult, passphrase []byte) error {

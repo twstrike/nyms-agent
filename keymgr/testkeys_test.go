@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nymsio/pgpmail"
+	"github.com/twstrike/pgpmail"
 
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/packet"

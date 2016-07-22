@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 
-	"github.com/nymsio/nyms-agent/keymgr"
+	"github.com/twstrike/nyms-agent/keymgr"
 
 	"golang.org/x/crypto/openpgp"
 )
