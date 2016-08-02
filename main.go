@@ -11,26 +11,29 @@ import (
 )
 
 var pipe bool
-var daemon bool
+var daemonEnabled bool
+var guiEnabled bool
 var protoDebug bool
 
 func init() {
 	flag.BoolVar(&pipe, "pipe", false, "Run RPC service on stdin/stdout")
-	flag.BoolVar(&daemon, "daemon", false, "Run RPC service on unix domain socket")
-	flag.BoolVar(&protoDebug, "debug", false, "Log RPC traffic")
+	flag.BoolVar(&daemonEnabled, "d", false, "Run RPC service on unix domain socket")
+	flag.BoolVar(&guiEnabled, "g", false, "Run gui client")
+	flag.BoolVar(&protoDebug, "protoDebug", false, "Log RPC traffic")
 	flag.Parse()
 }
 
 func main() {
-	keymgr.LoadDefaultKeyring()
 	if pipe {
+		go keymgr.LoadDefaultKeyring()
 		pp := pipes.CreatePipePair(os.Stdin, os.Stdout, protoDebug)
 		defer pp.Close()
 		log.Println("Listening on Stdin ...")
 		for {
 			go pipes.Serve(pp, protoDebug)
 		}
-	} else if daemon {
+	} else if daemonEnabled {
+		go keymgr.LoadDefaultKeyring()
 		log.Println("Listening on /tmp/nyms.sock ...")
 		l, err := net.Listen("unix", "/tmp/nyms.sock")
 		if err != nil {
@@ -44,5 +47,7 @@ func main() {
 			}
 			go pipes.Serve(conn, protoDebug)
 		}
+	} else if guiEnabled {
+		runClient()
 	}
 }
