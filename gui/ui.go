@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 
@@ -95,29 +96,46 @@ func (u *gtkUI) Loop() {
 func (u *gtkUI) mainWindow() {
 	builder := newBuilder("Main")
 	win, err := builder.GetObject("mainWindow")
-	vbox, _ := builder.GetObject("Vbox")
-	u.loadKeys(vbox)
 
 	if err != nil {
 		panic(err)
 	}
+	builder.ConnectSignals(map[string]interface{}{
+		"on_generate_key_dialog_signal": u.generateDialog,
+	})
 	u.window = win.(gtki.ApplicationWindow)
 	u.window.SetApplication(u.app)
 	u.window.ShowAll()
 }
 
-func (u *gtkUI) loadKeys(parent glibi.Object) {
-	builder := newBuilder("KeyRingTable")
-	keyRingTable, err := builder.GetObject("keyRingTable")
+func (u *gtkUI) generateDialog() {
+	builder := newBuilder("GenerateKeys")
+	obj, err := builder.GetObject("generateDialog")
 	if err != nil {
 		panic(err)
 	}
+	generateDialog := obj.(gtki.Dialog)
+	generateDialog.Connect("response", func(_ interface{}, rid int) {
+		if gtki.ResponseType(rid) == gtki.RESPONSE_OK {
+			obj, err := builder.GetObject("email-entry")
+			if err != nil {
+				panic(err)
+			}
+			email, _ := obj.(gtki.Entry).GetText()
+			obj, err = builder.GetObject("real-name-entry")
+			if err != nil {
+				panic(err)
+			}
+			realName, _ := obj.(gtki.Entry).GetText()
+			go generateNewKey(realName, email)
+		}
+		generateDialog.Destroy()
+	})
+	generateDialog.SetTransientFor(u.window)
+	generateDialog.Run()
+}
 
-	c := &client{}
-	pubKeyRing := c.pubKeyRing()
-	for i := range pubKeyRing.Keys {
-		key, _ := g.gtk.LabelNew(pubKeyRing.Keys[i].Fingerprint)
-		keyRingTable.(gtki.Grid).Add(key.(gtki.Widget))
-	}
-	parent.(gtki.Box).PackStart(keyRingTable.(gtki.Grid), true, true, 0)
+func generateNewKey(realName, email string) {
+	keyinfo := new(client).createKeyPair(realName, email, "")
+	fmt.Printf("%v", keyinfo)
 }

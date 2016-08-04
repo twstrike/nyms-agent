@@ -30,3 +30,13 @@ func (c *client) pubKeyRing() protocol.GetKeyRingResult {
 	}
 	return pubKeyRing
 }
+
+func (c *client) createKeyPair(name, email, comment string) protocol.GetKeyInfoResult {
+	c.establishConn()
+	var keyinfo protocol.GetKeyInfoResult
+	err := c.rpc.Call("Protocol.GenerateKeys", protocol.GenerateKeysArgs{name, email, comment}, &keyinfo)
+	if err != nil {
+		log.Fatal("GenerateKeys error:", err)
+	}
+	return keyinfo
+}

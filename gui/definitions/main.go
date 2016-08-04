@@ -26,10 +26,22 @@ func (*defMain) String() string {
               <object class="GtkMenuBar" id="menubar">
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkMenuItem" id="AccountsMenu">
+                  <object class="GtkMenuItem" id="FilesMenu">
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">_Files</property>
                     <property name="use-underline">True</property>
+                    <child type="submenu">
+                      <object class="GtkMenu" id="Keys">
+                        <property name="can_focus">False</property>
+                        <child>
+                          <object class="GtkMenuItem" id="GenerateKeys">
+                            <property name="can_focus">True</property>
+                            <property name="label" translatable="yes">Generate New key pair</property>
+                            <signal name="activate" handler="on_generate_key_dialog_signal" swapped="no"/>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>
@@ -90,7 +102,7 @@ func (*defMain) String() string {
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">Help</property>
                     <child type="submenu">
-                      <object class="GtkMenu" id="menu3">
+                      <object class="GtkMenu" id="Feedback">
                         <property name="can_focus">False</property>
                         <child>
                           <object class="GtkMenuItem" id="feedbackMenu">
