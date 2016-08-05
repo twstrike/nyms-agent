@@ -1,0 +1,17 @@
+{
+	"ImportPath": "github.com/twstrike/nyms-agent",
+	"GoVersion": "go1.6.3",
+	"Packages": [
+		"golang.org/x/crypto/openpgp"
+	],
+	"Deps": [
+		{
+			"ImportPath": "golang.org/x/crypto/cast5",
+			"Rev": "bc89c496413265e715159bdc8478ee9a92fdc265"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp",
+			"Rev": "bc89c496413265e715159bdc8478ee9a92fdc265"
+		}
+	]
+}
