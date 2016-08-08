@@ -9,6 +9,7 @@ import (
 	"github.com/twstrike/gotk3adapter/pangoa"
 )
 
+//XXX This should be a separate app.
 func runClient() {
 	g := gui.CreateGraphics(
 		gtka.Real,
