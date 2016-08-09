@@ -11,8 +11,8 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-const pubring = ".gnupg/pubring.gpg"
-const secring = ".gnupg/secring.gpg"
+const pubring = "pubring.gpg"
+const secring = "secring.gpg"
 
 func loadDefaultKeyring() (pgpmail.KeySource, error) {
 	u, err := user.Current()
@@ -20,8 +20,12 @@ func loadDefaultKeyring() (pgpmail.KeySource, error) {
 		return nil, err
 	}
 
-	pubpath := filepath.Join(u.HomeDir, pubring)
-	secpath := filepath.Join(u.HomeDir, secring)
+	return loadDefaultKeyringAt(filepath.Join(u.HomeDir, ".gnupg"))
+}
+
+func loadDefaultKeyringAt(rootPath string) (pgpmail.KeySource, error) {
+	pubpath := filepath.Join(rootPath, pubring)
+	secpath := filepath.Join(rootPath, secring)
 	publicEntities, err := loadKeyringFile(pubpath)
 	if err != nil {
 		return nil, err

@@ -8,12 +8,11 @@ import (
 )
 
 func TestLocalKeyring(t *testing.T) {
-	k, err := KeySource().GetSecretKey("fan.torchz@gmail.com")
+	localKeyRing, _ := loadDefaultKeyringAt("../testdata/gpg-datadir")
+	_, err := localKeyRing.GetSecretKey("agent@nyms.io")
 	if err != nil {
 		t.Error("error looking up key")
 	}
-	fmt.Printf("k %+v\n", k)
-	fmt.Printf("k.PrivateKey %+v\n", k.PrivateKey)
 }
 
 func TestUnlockPrivateWithWrongPassword(t *testing.T) {

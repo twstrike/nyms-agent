@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestGenerateDummyStore(t *testing.T) {
+func TestInternalKeyring(t *testing.T) {
 	nymsDirectory = "../testdata/nyms-datadir"
 	internalKeys, _ := loadInternalKeyring()
 
