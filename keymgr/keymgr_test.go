@@ -6,6 +6,16 @@ import (
 	"testing"
 )
 
+func TestGenerateDummyStore(t *testing.T) {
+	nymsDirectory = "../testdata/nyms-datadir"
+	internalKeys, _ := loadInternalKeys()
+
+	_, err := internalKeys.GetSecretKey("agent@nyms.io")
+	if err != nil {
+		t.Error("error looking up key")
+	}
+}
+
 func TestGenerateKey(t *testing.T) {
 	e, err := generateNewKey("foo", "", "foo@bar.com", openpgpTestConfig())
 	if err != nil {

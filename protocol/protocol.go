@@ -108,6 +108,7 @@ func getEntityByEmail(email string) *openpgp.Entity {
 	return k
 }
 
+//XXX Why no error?
 func getEntityByKeyId(keyId string) *openpgp.Entity {
 	id, err := decodeKeyId(keyId)
 	if err != nil {
