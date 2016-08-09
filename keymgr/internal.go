@@ -6,13 +6,7 @@ import (
 	"github.com/twstrike/pgpmail"
 )
 
-var internalKeys pgpmail.KeySource
-
-func init() {
-	internalKeys, _ = loadInternalKeys()
-}
-
-func loadInternalKeys() (pgpmail.KeySource, error) {
+func loadInternalKeyring() (pgpmail.KeySource, error) {
 	pubpath := filepath.Join(nymsDirectory, publicKeyringFilename)
 	pubEntities, err := loadKeyringFile(pubpath)
 	if err != nil {

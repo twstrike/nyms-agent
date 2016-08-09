@@ -8,7 +8,7 @@ import (
 
 func TestGenerateDummyStore(t *testing.T) {
 	nymsDirectory = "../testdata/nyms-datadir"
-	internalKeys, _ := loadInternalKeys()
+	internalKeys, _ := loadInternalKeyring()
 
 	_, err := internalKeys.GetSecretKey("agent@nyms.io")
 	if err != nil {

@@ -28,6 +28,7 @@ var logger = gl.MustGetLogger("keymgr")
 var nymsDirectory = ""
 
 var defaultKeys pgpmail.KeySource
+var internalKeys pgpmail.KeySource
 
 type keyStore struct {
 	publicKeys openpgp.EntityList
@@ -35,8 +36,8 @@ type keyStore struct {
 }
 
 func init() {
-	LoadDefaultKeyring()
-	defaultKeys = &keyStore{publicKeys: publicEntities, secretKeys: secretEntities}
+	defaultKeys, _ = loadDefaultKeyring()
+	internalKeys, _ = loadInternalKeyring()
 }
 
 func initNymsDir(dir string) {

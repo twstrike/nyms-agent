@@ -6,31 +6,36 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/twstrike/pgpmail"
+
 	"golang.org/x/crypto/openpgp"
 )
 
 const pubring = ".gnupg/pubring.gpg"
 const secring = ".gnupg/secring.gpg"
 
-var publicEntities openpgp.EntityList
-var secretEntities openpgp.EntityList
-
-func LoadDefaultKeyring() error {
+func loadDefaultKeyring() (pgpmail.KeySource, error) {
 	u, err := user.Current()
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	pubpath := filepath.Join(u.HomeDir, pubring)
 	secpath := filepath.Join(u.HomeDir, secring)
-	publicEntities, err = loadKeyringFile(pubpath)
+	publicEntities, err := loadKeyringFile(pubpath)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	secretEntities, err = loadKeyringFile(secpath)
+
+	secretEntities, err := loadKeyringFile(secpath)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	return &keyStore{
+		publicKeys: publicEntities,
+		secretKeys: secretEntities,
+	}, nil
 }
 
 func loadKeyringFile(path string) (openpgp.EntityList, error) {

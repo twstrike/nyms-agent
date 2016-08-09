@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/twstrike/nyms-agent/keymgr"
 	"github.com/twstrike/nyms-agent/pipes"
 )
 
@@ -25,7 +24,6 @@ func init() {
 
 func main() {
 	if pipe {
-		go keymgr.LoadDefaultKeyring()
 		pp := pipes.CreatePipePair(os.Stdin, os.Stdout, protoDebug)
 		defer pp.Close()
 		log.Println("Listening on Stdin ...")
@@ -33,7 +31,6 @@ func main() {
 			go pipes.Serve(pp, protoDebug)
 		}
 	} else if daemonEnabled {
-		go keymgr.LoadDefaultKeyring()
 		log.Println("Listening on /tmp/nyms.sock ...")
 		l, err := net.Listen("unix", "/tmp/nyms.sock")
 		if err != nil {
