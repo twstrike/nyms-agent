@@ -6,9 +6,11 @@ package packet
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/cipher"
 	"crypto/dsa"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
 	"encoding/binary"
@@ -34,6 +36,11 @@ type PrivateKey struct {
 	PrivateKey    interface{} // An *rsa.PrivateKey or *dsa.PrivateKey.
 	sha1Checksum  bool
 	iv            []byte
+
+	// s2k related
+	salt      []byte
+	s2kMode   uint8
+	s2kConfig s2k.Config
 }
 
 func NewRSAPrivateKey(currentTime time.Time, priv *rsa.PrivateKey) *PrivateKey {
@@ -88,7 +95,7 @@ func (pk *PrivateKey) parse(r io.Reader) (err error) {
 		}
 		pk.cipher = CipherFunction(buf[0])
 		pk.Encrypted = true
-		pk.s2k, err = s2k.Parse(r)
+		pk.s2k, pk.s2kMode, pk.s2kConfig.Hash, pk.salt, pk.s2kConfig.S2KCount, err = s2k.Parse2(r)
 		if err != nil {
 			return
 		}
@@ -202,6 +209,114 @@ func serializeRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) error {
 	return writeBig(w, priv.Precomputed.Qinv)
 }
 
+func serializeDSAPrivateKey(w io.Writer, priv *dsa.PrivateKey) error {
+	return writeBig(w, priv.X)
+}
+
+func serializeElGamalPrivateKey(w io.Writer, priv *elgamal.PrivateKey) error {
+	return writeBig(w, priv.X)
+}
+
+func serializeECDSAPrivateKey(w io.Writer, priv *ecdsa.PrivateKey) error {
+	return writeBig(w, priv.D)
+}
+
+func (pk *PrivateKey) Encrypt(passphrase []byte) error {
+	privateKeyBuf := bytes.NewBuffer(nil)
+	err := pk.SerializePGPPrivate(privateKeyBuf)
+	if err != nil {
+		return err
+	}
+
+	privateKeyBytes := privateKeyBuf.Bytes()
+	key := make([]byte, pk.cipher.KeySize())
+	pk.salt = make([]byte, 8)
+	rand.Read(pk.salt)
+	pk.s2kConfig.S2KCount = 65536
+	pk.s2kConfig.Hash = crypto.SHA1
+
+	pk.s2k = func(out, in []byte) {
+		s2k.Iterated(out, pk.s2kConfig.Hash.New(), in, pk.salt, pk.s2kConfig.S2KCount)
+	}
+	pk.s2k(key, passphrase)
+	block := pk.cipher.new(key)
+	cfb := cipher.NewCFBEncrypter(block, pk.iv)
+
+	if pk.sha1Checksum {
+		h := sha1.New()
+		h.Write(privateKeyBytes)
+		sum := h.Sum(nil)
+		privateKeyBytes = append(privateKeyBytes, sum...)
+	} else {
+		var sum uint16
+		for i := 0; i < len(privateKeyBytes); i++ {
+			sum += uint16(privateKeyBytes[i])
+		}
+		privateKeyBytes = append(privateKeyBytes, uint8(sum>>8))
+		privateKeyBytes = append(privateKeyBytes, uint8(sum))
+	}
+
+	pk.encryptedData = make([]byte, len(privateKeyBytes))
+	cfb.XORKeyStream(pk.encryptedData, privateKeyBytes)
+
+	pk.Encrypted = true
+	return err
+}
+
+func (pk *PrivateKey) SerializePGP(w io.Writer) error {
+	buf := bytes.NewBuffer(nil)
+	pk.PublicKey.serializeWithoutHeaders(buf)
+
+	privateKeyBuf := bytes.NewBuffer(nil)
+	encodedKeyBuf := bytes.NewBuffer(nil)
+	if !pk.Encrypted {
+		pk.SerializePGPPrivate(privateKeyBuf)
+	} else {
+		encodedKeyBuf.Write([]byte{0xfe})
+		encodedKeyBuf.Write([]byte{0x03})
+		encodedKeyBuf.Write([]byte{0x03})
+		hashID, _ := s2k.HashToHashId(pk.s2kConfig.Hash)
+		encodedKeyBuf.Write([]byte{hashID})
+		encodedKeyBuf.Write(pk.salt)
+		encodedKeyBuf.Write([]byte{pk.s2kConfig.EncodedCount()})
+
+		privateKeyBuf.Write(pk.encryptedData)
+	}
+
+	ptype := packetTypePrivateKey
+	contents := buf.Bytes()
+	encodedKey := encodedKeyBuf.Bytes()
+	privateKeyBytes := privateKeyBuf.Bytes()
+	if pk.IsSubkey {
+		ptype = packetTypePrivateSubkey
+	}
+
+	err := serializeHeader(w, ptype, len(contents)+len(encodedKey)+len(pk.iv)+len(privateKeyBytes))
+	w.Write(contents)
+	w.Write(encodedKey)
+	w.Write(pk.iv)
+	w.Write(privateKeyBytes)
+
+	return err
+}
+
+func (pk *PrivateKey) SerializePGPPrivate(privateKeyBuf io.Writer) error {
+	var err error
+	switch priv := pk.PrivateKey.(type) {
+	case *rsa.PrivateKey:
+		err = serializePGPRSAPrivateKey(privateKeyBuf, priv)
+	case *dsa.PrivateKey:
+		err = serializePGPDSAPrivateKey(privateKeyBuf, priv)
+	case *elgamal.PrivateKey:
+		err = serializePGPElGamalPrivateKey(privateKeyBuf, priv)
+	case *ecdsa.PrivateKey:
+		err = serializePGPECDSAPrivateKey(privateKeyBuf, priv)
+	default:
+		err = errors.InvalidArgumentError("unknown private key type")
+	}
+	return err
+}
+
 func serializePGPRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) error {
 	binary.Write(w, binary.BigEndian, priv.D.BitLen())
 	err := writeBig(w, priv.D)
@@ -236,74 +351,6 @@ func serializePGPElGamalPrivateKey(w io.Writer, priv *elgamal.PrivateKey) error 
 func serializePGPECDSAPrivateKey(w io.Writer, priv *ecdsa.PrivateKey) error {
 	binary.Write(w, binary.BigEndian, priv.D.BitLen())
 	return writeBig(w, priv.D)
-}
-
-func serializeDSAPrivateKey(w io.Writer, priv *dsa.PrivateKey) error {
-	return writeBig(w, priv.X)
-}
-
-func serializeElGamalPrivateKey(w io.Writer, priv *elgamal.PrivateKey) error {
-	return writeBig(w, priv.X)
-}
-
-func serializeECDSAPrivateKey(w io.Writer, priv *ecdsa.PrivateKey) error {
-	return writeBig(w, priv.D)
-}
-
-func (pk *PrivateKey) Encrypt(passphrase []byte) error {
-	privateKeyBuf := bytes.NewBuffer(nil)
-	var err error
-
-	switch priv := pk.PrivateKey.(type) {
-	case *rsa.PrivateKey:
-		err = serializePGPRSAPrivateKey(privateKeyBuf, priv)
-		if err != nil {
-			return err
-		}
-	case *dsa.PrivateKey:
-		err = serializePGPDSAPrivateKey(privateKeyBuf, priv)
-		if err != nil {
-			return err
-		}
-	case *elgamal.PrivateKey:
-		err = serializePGPElGamalPrivateKey(privateKeyBuf, priv)
-		if err != nil {
-			return err
-		}
-	case *ecdsa.PrivateKey:
-		err = serializePGPECDSAPrivateKey(privateKeyBuf, priv)
-		if err != nil {
-			return err
-		}
-	default:
-		err = errors.InvalidArgumentError("unknown private key type")
-	}
-
-	privateKeyBytes := privateKeyBuf.Bytes()
-	key := make([]byte, pk.cipher.KeySize())
-	pk.s2k(key, passphrase)
-	block := pk.cipher.new(key)
-	cfb := cipher.NewCFBEncrypter(block, pk.iv)
-
-	if pk.sha1Checksum {
-		h := sha1.New()
-		h.Write(privateKeyBytes)
-		sum := h.Sum(nil)
-		privateKeyBytes = append(privateKeyBytes, sum...)
-	} else {
-		var sum uint16
-		for i := 0; i < len(privateKeyBytes); i++ {
-			sum += uint16(privateKeyBytes[i])
-		}
-		privateKeyBytes = append(privateKeyBytes, uint8(sum>>8))
-		privateKeyBytes = append(privateKeyBytes, uint8(sum))
-	}
-
-	pk.encryptedData = make([]byte, len(privateKeyBytes))
-	cfb.XORKeyStream(pk.encryptedData, privateKeyBytes)
-
-	pk.Encrypted = true
-	return err
 }
 
 // Decrypt decrypts an encrypted private key using a passphrase.
