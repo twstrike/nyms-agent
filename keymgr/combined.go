@@ -15,22 +15,6 @@ type combinedKeySource struct {
 	sources []pgpmail.KeySource
 }
 
-func GetAllKeys() (pgpmail.KeySource, error) {
-	internal, err := loadInternalKeyring()
-	if err != nil {
-		return nil, err
-	}
-
-	fromGPG, err := loadDefaultKeyring()
-	if err != nil {
-		return nil, err
-	}
-
-	return &combinedKeySource{[]pgpmail.KeySource{
-		internal, fromGPG,
-	}}, nil
-}
-
 func (s *combinedKeySource) GetPublicKeyRing() openpgp.EntityList {
 	return nil //TODO
 }
