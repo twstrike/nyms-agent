@@ -44,7 +44,5 @@ func main() {
 			}
 			go pipes.Serve(conn, protoDebug)
 		}
-	} else if guiEnabled {
-		runClient()
 	}
 }

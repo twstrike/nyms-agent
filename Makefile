@@ -1,5 +1,5 @@
-default: gen-def-files build
-gen-def-files:
-	make -C ./gui/definitions
+default: test build
+test:
+	godep go test ./...
 build:
 	go build
