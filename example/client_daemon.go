@@ -11,10 +11,12 @@ import (
 
 func main() {
 	conn, err := net.Dial("unix", "/tmp/nyms.sock")
-	defer conn.Close()
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
+	defer conn.Close()
+
 	c := pipes.NewClient(conn)
 
 	var version int
