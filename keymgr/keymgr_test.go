@@ -17,6 +17,7 @@ func TestInternalKeyring(t *testing.T) {
 }
 
 func TestGenerateKey(t *testing.T) {
+	nymsDirectory = "../testdata/tmp"
 	e, err := generateNewKey("foo", "", "foo@bar.com", openpgpTestConfig())
 	if err != nil {
 		t.Errorf("error generating key %v", err)
