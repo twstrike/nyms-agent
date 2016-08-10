@@ -35,9 +35,43 @@ type keyStore struct {
 	secretKeys openpgp.EntityList
 }
 
+type Conf struct {
+	GPGConfDir  string
+	NymsConfDir string
+}
+
+func defaultConf() (*Conf, error) {
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Conf{
+		GPGConfDir:  filepath.Join(u.HomeDir, ".gnupg"),
+		NymsConfDir: nymsDirectory,
+	}, nil
+}
+
 func init() {
-	defaultKeys, _ = loadDefaultKeyring()
-	internalKeys, _ = loadInternalKeyring()
+	Load(nil)
+}
+
+//Load initializes the keyrings used by the keymanager
+func Load(conf *Conf) (err error) {
+	if conf == nil {
+		conf, err = defaultConf()
+		if err != nil {
+			return
+		}
+	}
+
+	defaultKeys, err = loadDefaultKeyringAt(conf.GPGConfDir)
+	if err != nil {
+		return
+	}
+
+	internalKeys, err = loadInternalKeyring(conf.NymsConfDir)
+	return
 }
 
 func initNymsDir(dir string) {

@@ -3,7 +3,6 @@ package keymgr
 import (
 	"errors"
 	"os"
-	"os/user"
 	"path/filepath"
 
 	"github.com/twstrike/pgpmail"
@@ -13,15 +12,6 @@ import (
 
 const pubring = "pubring.gpg"
 const secring = "secring.gpg"
-
-func loadDefaultKeyring() (pgpmail.KeySource, error) {
-	u, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
-
-	return loadDefaultKeyringAt(filepath.Join(u.HomeDir, ".gnupg"))
-}
 
 func loadDefaultKeyringAt(rootPath string) (pgpmail.KeySource, error) {
 	pubpath := filepath.Join(rootPath, pubring)
