@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/openpgp"
 
 	gl "github.com/op/go-logging"
+	"github.com/twstrike/nyms-agent/hkps"
 	"github.com/twstrike/nyms-agent/keymgr"
 )
 
@@ -204,6 +205,7 @@ func (*Protocol) UnlockPrivateKey(args UnlockPrivateKeyArgs, result *bool) error
 	return nil
 }
 
+//XXX This is long key ID
 func decodeKeyId(keyId string) (uint64, error) {
 	bs, err := hex.DecodeString(keyId)
 	if err != nil {
@@ -242,4 +244,35 @@ func catchPanic(err *error, fname string) {
 			*err = errors.New(msg)
 		}
 	}
+}
+
+//
+//Protocol.PublishToKeyserver
+//
+type PublishToKeyserverArgs struct {
+	Fingerprint string
+	LongKeyId   string
+	ShortKeyId  string
+
+	KeyServer string
+}
+
+type PublishToKeyserverResult struct {
+}
+
+func (*Protocol) PublishToKeyserver(args PublishToKeyserverArgs, result *PublishToKeyserverResult) error {
+	//defer catchPanic(&e, "PublishToKeyserver")
+
+	//XXX Should we allow filtering which Identities and Subkeys to publish?
+	key := getEntityByKeyId(args.LongKeyId)
+	if key == nil {
+		return fmt.Errorf("nyms-agent: could not find an entity for %s", args.LongKeyId)
+	}
+
+	ks, err := hkps.NewClient(args.KeyServer)
+	if err != nil {
+		return err
+	}
+
+	return ks.Submit(key)
 }
