@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/twstrike/nyms-agent/keymgr"
 	"github.com/twstrike/nyms-agent/pipes"
 )
 
@@ -19,6 +20,12 @@ func init() {
 	flag.BoolVar(&daemonEnabled, "d", false, "Run RPC service on unix domain socket")
 	flag.BoolVar(&protoDebug, "protoDebug", false, "Log RPC traffic")
 	flag.Parse()
+
+	//XXX Get config dir from params
+	keymgr.Load(&keymgr.Conf{
+		GPGConfDir:  "./testdata/gpg-datadir",
+		NymsConfDir: "./testdata/nyms-datadir",
+	})
 }
 
 func main() {
