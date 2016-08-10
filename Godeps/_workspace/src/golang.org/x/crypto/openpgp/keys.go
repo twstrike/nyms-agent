@@ -6,7 +6,6 @@ package openpgp
 
 import (
 	"crypto/rsa"
-	"fmt"
 	"io"
 	"time"
 
