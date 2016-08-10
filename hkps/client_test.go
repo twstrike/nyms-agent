@@ -3,7 +3,6 @@ package hkps
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"testing"
 
@@ -108,12 +107,7 @@ func TestHKPSSubmit(t *testing.T) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
-		keytext, err := url.QueryUnescape(r.PostForm.Get("keytext"))
-		if err != nil {
-			t.Errorf("unexpected error: %s", err)
-		}
-
-		if keytext != expectedArmored {
+		if r.PostForm.Get("keytext") != expectedArmored {
 			t.Errorf("unexpected keytext: %s", keytext)
 		}
 	}
