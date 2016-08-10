@@ -107,13 +107,18 @@ func TestHKPSSubmit(t *testing.T) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
-		if r.PostForm.Get("keytext") != expectedArmored {
+		keytext := r.PostForm.Get("keytext")
+		if keytext != expectedArmored {
 			t.Errorf("unexpected keytext: %s", keytext)
 		}
 	}
 	s := httptest.NewServer(http.HandlerFunc(fn))
 
-	c := NewClient(s.URL)
+	c, err := NewClient(s.URL)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
 	err = c.Submit(e[0])
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
