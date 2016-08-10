@@ -1,20 +1,20 @@
 package protocol
 
 import (
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/openpgp"
 
 	gl "github.com/op/go-logging"
-	"github.com/twstrike/nyms-agent/hkps"
+	"github.com/twstrike/nyms-agent/agent"
 	"github.com/twstrike/nyms-agent/keymgr"
 )
 
 var logger = gl.MustGetLogger("nymsd")
 
+//XXX This should be only an adapter from jsonrcp - which requires a struct
+//with exported methods, etc, etc. - to the real implementation
 type Protocol int
 type VoidArg struct{}
 
@@ -86,40 +86,25 @@ type GetKeyInfoResult struct {
 
 func (*Protocol) GetKeyInfo(args GetKeyInfoArgs, result *GetKeyInfoResult) error {
 	logger.Info("Processing GetKeyInfo")
-	if k := handleGetKeyInfo(args.Address, args.KeyId); k != nil {
-		populateKeyInfo(k, result)
-	}
-	return nil
-}
 
-func handleGetKeyInfo(address string, keyid string) *openpgp.Entity {
-	if address != "" {
-		return getEntityByEmail(address)
-	} else if keyid != "" {
-		return getEntityByKeyId(keyid)
-	}
-	return nil
-}
+	var k *openpgp.Entity
+	var err error
 
-func getEntityByEmail(email string) *openpgp.Entity {
-	if k, _ := keymgr.KeySource().GetSecretKey(email); k != nil {
-		return k
+	switch true {
+	case args.Address != "":
+		k, err = agent.GetEntityByEmail(args.Address)
+	case args.KeyId != "":
+		k, err = agent.GetEntityByKeyId(args.KeyId)
+	default:
+		return fmt.Errorf("Must provide either GetKeyInfoArgs.Address or GetKeyInfoArgs.KeyID")
 	}
-	k, _ := keymgr.KeySource().GetPublicKey(email)
-	return k
-}
 
-//XXX Why no error?
-func getEntityByKeyId(keyId string) *openpgp.Entity {
-	id, err := decodeKeyId(keyId)
 	if err != nil {
-		logger.Warning(fmt.Sprint("Error decoding received key id: ", err))
-		return nil
+		return err
 	}
-	if k := keymgr.KeySource().GetSecretKeyById(id); k != nil {
-		return k
-	}
-	return keymgr.KeySource().GetPublicKeyById(id)
+
+	populateKeyInfo(k, result)
+	return nil
 }
 
 //
@@ -189,32 +174,10 @@ type UnlockPrivateKeyArgs struct {
 
 func (*Protocol) UnlockPrivateKey(args UnlockPrivateKeyArgs, result *bool) error {
 	logger.Info("Processing.UnlockPrivateKey")
-	id, err := decodeKeyId(args.KeyId)
-	if err != nil {
-		return err
-	}
-	k := keymgr.KeySource().GetSecretKeyById(id)
-	if k == nil {
-		return errors.New("No key found for given KeyId")
-	}
-	ok, err := keymgr.UnlockPrivateKey(k, []byte(args.Passphrase))
-	if err != nil {
-		return err
-	}
-	*result = ok
-	return nil
-}
+	ok, err := agent.UnlockPrivateKey(args.KeyId, []byte(args.Passphrase))
 
-//XXX This is long key ID
-func decodeKeyId(keyId string) (uint64, error) {
-	bs, err := hex.DecodeString(keyId)
-	if err != nil {
-		return 0, err
-	}
-	if len(bs) != 8 {
-		return 0, fmt.Errorf("keyId is not 8 bytes as expected, got %d", len(bs))
-	}
-	return binary.BigEndian.Uint64(bs), nil
+	*result = ok
+	return err
 }
 
 //
@@ -236,16 +199,6 @@ func (*Protocol) GenerateKeys(args GenerateKeysArgs, result *GetKeyInfoResult) e
 	return nil
 }
 
-func catchPanic(err *error, fname string) {
-	if r := recover(); r != nil {
-		msg := fmt.Sprintf("PANIC! caught from function %s : %s", fname, r)
-		logger.Warning(msg)
-		if *err == nil {
-			*err = errors.New(msg)
-		}
-	}
-}
-
 //
 //Protocol.PublishToKeyserver
 //
@@ -257,23 +210,20 @@ type PublishToKeyserverArgs struct {
 	KeyServer string
 }
 
-type PublishToKeyserverResult struct {
-}
+type PublishToKeyserverResult struct{}
 
 func (*Protocol) PublishToKeyserver(args PublishToKeyserverArgs, result *PublishToKeyserverResult) error {
 	logger.Info("Processing PublishToKeyserver")
 	//defer catchPanic(&e, "PublishToKeyserver")
+	return agent.PublishToKeyserver(args.LongKeyId, args.KeyServer)
+}
 
-	//XXX Should we allow filtering which Identities and Subkeys to publish?
-	key := getEntityByKeyId(args.LongKeyId)
-	if key == nil {
-		return fmt.Errorf("nyms-agent: could not find an entity for %s", args.LongKeyId)
+func catchPanic(err *error, fname string) {
+	if r := recover(); r != nil {
+		msg := fmt.Sprintf("PANIC! caught from function %s : %s", fname, r)
+		logger.Warning(msg)
+		if *err == nil {
+			*err = errors.New(msg)
+		}
 	}
-
-	ks, err := hkps.NewClient(args.KeyServer)
-	if err != nil {
-		return err
-	}
-
-	return ks.Submit(key)
 }
