@@ -261,6 +261,7 @@ type PublishToKeyserverResult struct {
 }
 
 func (*Protocol) PublishToKeyserver(args PublishToKeyserverArgs, result *PublishToKeyserverResult) error {
+	logger.Info("Processing PublishToKeyserver")
 	//defer catchPanic(&e, "PublishToKeyserver")
 
 	//XXX Should we allow filtering which Identities and Subkeys to publish?
