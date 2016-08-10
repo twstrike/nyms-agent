@@ -13,12 +13,12 @@ import (
 
 var pipe bool
 var daemonEnabled bool
-var protoDebug bool
+var guiEnabled bool
 
 func init() {
 	flag.BoolVar(&pipe, "pipe", false, "Run RPC service on stdin/stdout")
 	flag.BoolVar(&daemonEnabled, "d", false, "Run RPC service on unix domain socket")
-	flag.BoolVar(&protoDebug, "protoDebug", false, "Log RPC traffic")
+	flag.BoolVar(&guiEnabled, "g", false, "Run gui client")
 	flag.Parse()
 
 	//XXX Get config dir from params
@@ -31,11 +31,11 @@ func init() {
 func main() {
 	switch true {
 	case pipe:
-		pp := pipes.CreatePipePair(os.Stdin, os.Stdout, protoDebug)
+		pp := pipes.CreatePipePair(os.Stdin, os.Stdout)
 		defer pp.Close()
 		log.Println("Listening on Stdin ...")
 		for {
-			go pipes.Serve(pp, protoDebug)
+			go pipes.Serve(pp)
 		}
 	case daemonEnabled:
 		log.Println("Listening on /tmp/nyms.sock ...")
@@ -52,7 +52,7 @@ func main() {
 				log.Fatal(err)
 				continue
 			}
-			go pipes.Serve(conn, protoDebug)
+			go pipes.Serve(conn)
 		}
 	default:
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])

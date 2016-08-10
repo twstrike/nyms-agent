@@ -33,7 +33,7 @@ func (pp pipePair) Close() (e error) {
 	return e
 }
 
-func Serve(conn io.ReadWriteCloser, protoDebug bool) {
+func Serve(conn io.ReadWriteCloser) {
 	defer conn.Close()
 	protocol := new(protocol.Protocol)
 	rpc.Register(protocol)
@@ -45,6 +45,6 @@ func NewClient(conn io.ReadWriteCloser) *rpc.Client {
 	return jsonrpc.NewClient(conn)
 }
 
-func CreatePipePair(r io.ReadCloser, w io.WriteCloser, protoDebug bool) io.ReadWriteCloser {
+func CreatePipePair(r io.ReadCloser, w io.WriteCloser) io.ReadWriteCloser {
 	return &pipePair{r, w}
 }
