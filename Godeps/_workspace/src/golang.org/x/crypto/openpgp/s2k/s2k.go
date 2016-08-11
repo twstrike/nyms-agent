@@ -20,6 +20,10 @@ import (
 // values. Currently, Config is used only by the Serialize function in
 // this package.
 type Config struct {
+	// S2KMode is the mode of s2k function.
+	// It can be 0 (simple), 1(salted), 3(iterated)
+	// 2(reserved) 100-110(private/experimental).
+	S2KMode uint8
 	// Hash is the default hash function to be used. If
 	// nil, SHA1 is used.
 	Hash crypto.Hash
@@ -156,13 +160,13 @@ func Iterated(out []byte, h hash.Hash, in []byte, salt []byte, count int) {
 }
 
 func Parse(r io.Reader) (f func(out, in []byte), err error) {
-	f, _, _, _, _, err = Parse2(r)
+	f, _, _, err = Parse2(r)
 	return
 }
 
 // Parse reads a binary specification for a string-to-key transformation from r
 // and returns a function which performs that transform.
-func Parse2(r io.Reader) (f func(out, in []byte), mode uint8, hash crypto.Hash, salt []byte, count int, err error) {
+func Parse2(r io.Reader) (f func(out, in []byte), salt []byte, config Config, err error) {
 	var buf [9]byte
 
 	_, err = io.ReadFull(r, buf[:2])
@@ -179,9 +183,10 @@ func Parse2(r io.Reader) (f func(out, in []byte), mode uint8, hash crypto.Hash, 
 		err = errors.UnsupportedError("hash not available: " + strconv.Itoa(int(hash)))
 		return
 	}
+	config.Hash = hash
 	h := hash.New()
-	mode = buf[0]
-	switch mode {
+	config.S2KMode = buf[0]
+	switch config.S2KMode {
 	case 0:
 		f = func(out, in []byte) {
 			Simple(out, h, in)
@@ -202,9 +207,9 @@ func Parse2(r io.Reader) (f func(out, in []byte), mode uint8, hash crypto.Hash, 
 		if err != nil {
 			return
 		}
-		count = decodeCount(buf[8])
+		config.S2KCount = decodeCount(buf[8])
 		f = func(out, in []byte) {
-			Iterated(out, h, in, buf[:8], count)
+			Iterated(out, h, in, buf[:8], config.S2KCount)
 		}
 		salt = buf[:8]
 		return

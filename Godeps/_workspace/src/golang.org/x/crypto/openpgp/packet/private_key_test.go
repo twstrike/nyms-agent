@@ -30,7 +30,6 @@ var privateKeyTests = []struct {
 }
 
 func TestPrivateKeyRead(t *testing.T) {
-	return
 	for i, test := range privateKeyTests {
 		packet, err := Read(readerFromHex(test.privateKeyHex))
 		if err != nil {

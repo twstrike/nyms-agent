@@ -39,7 +39,6 @@ type PrivateKey struct {
 
 	// s2k related
 	salt      []byte
-	s2kMode   uint8
 	s2kConfig s2k.Config
 	s2kType   S2KType
 }
@@ -104,7 +103,7 @@ func (pk *PrivateKey) parse(r io.Reader) (err error) {
 		}
 		pk.cipher = CipherFunction(buf[0])
 		pk.Encrypted = true
-		pk.s2k, pk.s2kMode, pk.s2kConfig.Hash, pk.salt, pk.s2kConfig.S2KCount, err = s2k.Parse2(r)
+		pk.s2k, pk.salt, pk.s2kConfig, err = s2k.Parse2(r)
 		if err != nil {
 			return
 		}
@@ -152,7 +151,7 @@ func (pk *PrivateKey) SerializeEncrypted(w io.Writer) error {
 	encodedKeyBuf := bytes.NewBuffer(nil)
 	encodedKeyBuf.Write([]byte{uint8(pk.s2kType)})
 	encodedKeyBuf.Write([]byte{uint8(pk.cipher)})
-	encodedKeyBuf.Write([]byte{pk.s2kMode})
+	encodedKeyBuf.Write([]byte{pk.s2kConfig.S2KMode})
 	hashID, ok := s2k.HashToHashId(pk.s2kConfig.Hash)
 	if !ok {
 		return errors.UnsupportedError("no such hash")
@@ -271,15 +270,15 @@ func serializeECDSAPrivateKey(w io.Writer, priv *ecdsa.PrivateKey) error {
 
 func (pk *PrivateKey) Encrypt(passphrase []byte) error {
 	privateKeyBuf := bytes.NewBuffer(nil)
-	err := pk.SerializePGPPrivate(privateKeyBuf)
+	err := pk.SerializePrivateMPI(privateKeyBuf)
 	if err != nil {
 		return err
 	}
 
 	//Default config of private key encryption
 	pk.cipher = CipherAES128
-	pk.s2kMode = 3 //Iterated
 	pk.s2kConfig = s2k.Config{
+		S2KMode:  3, //Iterated
 		S2KCount: 65536,
 		Hash:     crypto.SHA1,
 	}
@@ -322,24 +321,24 @@ func (pk *PrivateKey) Encrypt(passphrase []byte) error {
 	return err
 }
 
-func (pk *PrivateKey) SerializePGPPrivate(privateKeyBuf io.Writer) error {
+func (pk *PrivateKey) SerializePrivateMPI(privateKeyBuf io.Writer) error {
 	var err error
 	switch priv := pk.PrivateKey.(type) {
 	case *rsa.PrivateKey:
-		err = serializePGPRSAPrivateKey(privateKeyBuf, priv)
+		err = serializeRSAPrivateKeyMPI(privateKeyBuf, priv)
 	case *dsa.PrivateKey:
-		err = serializePGPDSAPrivateKey(privateKeyBuf, priv)
+		err = serializeDSAPrivateKeyMPI(privateKeyBuf, priv)
 	case *elgamal.PrivateKey:
-		err = serializePGPElGamalPrivateKey(privateKeyBuf, priv)
+		err = serializeElGamalPrivateKeyMPI(privateKeyBuf, priv)
 	case *ecdsa.PrivateKey:
-		err = serializePGPECDSAPrivateKey(privateKeyBuf, priv)
+		err = serializeECDSAPrivateKeyMPI(privateKeyBuf, priv)
 	default:
 		err = errors.InvalidArgumentError("unknown private key type")
 	}
 	return err
 }
 
-func serializePGPRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) error {
+func serializeRSAPrivateKeyMPI(w io.Writer, priv *rsa.PrivateKey) error {
 	binary.Write(w, binary.BigEndian, priv.D.BitLen())
 	err := writeBig(w, priv.D)
 	if err != nil {
@@ -360,17 +359,17 @@ func serializePGPRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) error {
 	return writeBig(w, u)
 }
 
-func serializePGPDSAPrivateKey(w io.Writer, priv *dsa.PrivateKey) error {
+func serializeDSAPrivateKeyMPI(w io.Writer, priv *dsa.PrivateKey) error {
 	binary.Write(w, binary.BigEndian, priv.X.BitLen())
 	return writeBig(w, priv.X)
 }
 
-func serializePGPElGamalPrivateKey(w io.Writer, priv *elgamal.PrivateKey) error {
+func serializeElGamalPrivateKeyMPI(w io.Writer, priv *elgamal.PrivateKey) error {
 	binary.Write(w, binary.BigEndian, priv.X.BitLen())
 	return writeBig(w, priv.X)
 }
 
-func serializePGPECDSAPrivateKey(w io.Writer, priv *ecdsa.PrivateKey) error {
+func serializeECDSAPrivateKeyMPI(w io.Writer, priv *ecdsa.PrivateKey) error {
 	binary.Write(w, binary.BigEndian, priv.D.BitLen())
 	return writeBig(w, priv.D)
 }
