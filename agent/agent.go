@@ -13,6 +13,18 @@ import (
 	"github.com/twstrike/pgpmail"
 )
 
+func GetPublicKeyRing() openpgp.EntityList {
+	return keymgr.KeySource().GetPublicKeyRing()
+}
+
+func GetSecretKeyRing() openpgp.EntityList {
+	return keymgr.KeySource().GetSecretKeyRing()
+}
+
+func GenerateNewKey(name, comment, email string) (*openpgp.Entity, error) {
+	return keymgr.GenerateNewKey(name, comment, email)
+}
+
 func UnlockPrivateKey(keyID string, passphrase []byte) (bool, error) {
 	id, err := decodeKeyId(keyID)
 	if err != nil {

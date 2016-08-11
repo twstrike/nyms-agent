@@ -8,7 +8,6 @@ import (
 
 	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/agent"
-	"github.com/twstrike/nyms-agent/keymgr"
 	"github.com/twstrike/pgpmail"
 )
 
@@ -42,24 +41,21 @@ type GetKeyRingResult struct {
 
 func (*Protocol) GetPublicKeyRing(_ VoidArg, result *GetKeyRingResult) error {
 	logger.Info("Processing GetPublicKeyRing")
-	if kr := keymgr.KeySource().GetPublicKeyRing(); kr != nil {
-		result.Keys = make([]GetKeyInfoResult, len(kr))
-		for k := range kr {
-			populateKeyInfo(kr[k], &result.Keys[k])
-		}
-	}
+	populateKeyRingResult(agent.GetPublicKeyRing(), result)
 	return nil
 }
 
 func (*Protocol) GetSecretKeyRing(_ VoidArg, result *GetKeyRingResult) error {
 	logger.Info("Processing GetPublicKeyRing")
-	if kr := keymgr.KeySource().GetSecretKeyRing(); kr != nil {
-		result.Keys = make([]GetKeyInfoResult, len(kr))
-		for k := range kr {
-			populateKeyInfo(kr[k], &result.Keys[k])
-		}
-	}
+	populateKeyRingResult(agent.GetSecretKeyRing(), result)
 	return nil
+}
+
+func populateKeyRingResult(kr openpgp.EntityList, result *GetKeyRingResult) {
+	result.Keys = make([]GetKeyInfoResult, len(kr))
+	for k := range kr {
+		populateKeyInfo(kr[k], &result.Keys[k])
+	}
 }
 
 //
@@ -186,21 +182,6 @@ func populateVerificationResult(status *pgpmail.VerifyStatus, result *ProcessInc
 	}
 }
 
-func processOutgoingStatus(status *pgpmail.EncryptStatus, result *ProcessOutgoingResult) {
-	result.ResultCode = status.Code
-	if status.Code == pgpmail.StatusFailed {
-		result.FailureMessage = status.FailureMessage
-	}
-
-	if status.Code == pgpmail.StatusFailedNeedPubkeys {
-		result.MissingKeyAddresses = status.MissingKeys
-	}
-
-	if status.Message != nil {
-		result.EmailBody = status.Message.String()
-	}
-}
-
 //
 // Protocol.ProcessOutgoing
 //
@@ -235,6 +216,21 @@ func (*Protocol) ProcessOutgoing(args ProcessOutgoingArgs, result *ProcessOutgoi
 	return nil
 }
 
+func processOutgoingStatus(status *pgpmail.EncryptStatus, result *ProcessOutgoingResult) {
+	result.ResultCode = status.Code
+	if status.Code == pgpmail.StatusFailed {
+		result.FailureMessage = status.FailureMessage
+	}
+
+	if status.Code == pgpmail.StatusFailedNeedPubkeys {
+		result.MissingKeyAddresses = status.MissingKeys
+	}
+
+	if status.Message != nil {
+		result.EmailBody = status.Message.String()
+	}
+}
+
 //
 // Protocol.UnlockPrivateKey
 //
@@ -263,10 +259,11 @@ type GenerateKeysArgs struct {
 
 func (*Protocol) GenerateKeys(args GenerateKeysArgs, result *GetKeyInfoResult) error {
 	logger.Info("Processing GenerateKeys")
-	e, err := keymgr.GenerateNewKey(args.RealName, args.Comment, args.Email)
+	e, err := agent.GenerateNewKey(args.RealName, args.Comment, args.Email)
 	if err != nil {
 		return err
 	}
+
 	populateKeyInfo(e, result)
 	return nil
 }

@@ -49,6 +49,7 @@ func UnlockPrivateKey(e *openpgp.Entity, passphrase []byte) (bool, error) {
 	if e.PrivateKey == nil {
 		return false, errors.New("no private key")
 	}
+
 	if e.PrivateKey.Encrypted == false {
 		return true, nil
 	}
@@ -57,6 +58,7 @@ func UnlockPrivateKey(e *openpgp.Entity, passphrase []byte) (bool, error) {
 	if err == nil {
 		decryptSubkeys(e, passphrase)
 	}
+
 	return (err == nil), nil
 }
 
