@@ -26,6 +26,7 @@ func GenerateNewKey(name, comment, email string) (*openpgp.Entity, error) {
 }
 
 func UnlockPrivateKey(keyID string, passphrase []byte) (bool, error) {
+	//TODO use GetEntityByKeyId
 	id, err := decodeKeyId(keyID)
 	if err != nil {
 		return false, err
@@ -136,4 +137,15 @@ func decodeKeyId(keyId string) (uint64, error) {
 		return 0, fmt.Errorf("keyId is not 8 bytes as expected, got %d", len(bs))
 	}
 	return binary.BigEndian.Uint64(bs), nil
+}
+
+func UpdateExpirationFor(keyId string, expirationSecs uint32) (bool, error) {
+	entity, err := GetEntityByKeyId(keyId)
+	if err != nil {
+		return false, err
+	}
+
+	selfSig := entity.PrimaryIdentity().SelfSignature
+	selfSig.KeyLifetimeSecs = &expirationSecs
+	return true, nil
 }

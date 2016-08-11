@@ -296,3 +296,20 @@ func catchPanic(err *error, fname string) {
 		}
 	}
 }
+
+//
+//Protocol.UpdateExpirationFor
+//
+type UpdateExpirationForArgs struct {
+	KeyId        string
+	Expiratation int
+}
+
+func (*Protocol) UpdateExpirationFor(args UpdateExpirationForArgs, result *bool) error {
+	logger.Info("Processing.UpdateExpirationFor")
+
+	ok, err := agent.UpdateExpirationFor(args.KeyId, args.Expiratation)
+
+	*result = ok
+	return err
+}
