@@ -9,6 +9,7 @@ import (
 	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/agent"
 	"github.com/twstrike/nyms-agent/keymgr"
+	"github.com/twstrike/pgpmail"
 )
 
 var logger = gl.MustGetLogger("nymsd")
@@ -128,10 +129,75 @@ type ProcessIncomingResult struct {
 func (*Protocol) ProcessIncoming(args ProcessIncomingArgs, result *ProcessIncomingResult) (e error) {
 	logger.Info("Processing ProcessIncoming")
 	defer catchPanic(&e, "ProcessIncoming")
+
+	var m *agent.IncomingMail
+	var err error
+
 	if args.Passphrase == "" {
-		return processIncomingMail(args.EmailBody, result, nil)
+		m, err = agent.ProcessIncomingMail(args.EmailBody, nil)
 	} else {
-		return processIncomingMail(args.EmailBody, result, []byte(args.Passphrase))
+		m, err = agent.ProcessIncomingMail(args.EmailBody, []byte(args.Passphrase))
+	}
+
+	if err != nil {
+		return err
+	}
+
+	populateIncomingResult(m, result)
+	return nil
+}
+
+func populateIncomingResult(m *agent.IncomingMail, result *ProcessIncomingResult) {
+	result.VerifyResult = pgpmail.VerifyNotSigned
+	result.DecryptResult = pgpmail.DecryptNotEncrypted
+
+	populateVerificationResult(m.VerifyStatus, result)
+	populateDecriptionResult(m.DecryptionStatus, result)
+	if m.DecryptionStatus.Code == pgpmail.DecryptSuccess {
+		result.EmailBody = m.Message.String()
+	}
+}
+
+func populateDecriptionResult(status *pgpmail.DecryptionStatus, result *ProcessIncomingResult) {
+	result.DecryptResult = status.Code
+	result.VerifyResult = status.VerifyStatus.Code
+
+	if status.Code == pgpmail.DecryptFailed {
+		result.FailureMessage = status.FailureMessage
+	} else if status.VerifyStatus.Code == pgpmail.VerifyFailed {
+		result.FailureMessage = status.VerifyStatus.FailureMessage
+	}
+
+	if status.Code == pgpmail.DecryptPassphraseNeeded && status.KeyIds != nil {
+		for _, id := range status.KeyIds {
+			result.EncryptedKeyIds = append(result.EncryptedKeyIds, encodeKeyId(id))
+		}
+	}
+}
+
+func populateVerificationResult(status *pgpmail.VerifyStatus, result *ProcessIncomingResult) {
+	result.VerifyResult = status.Code
+	if status.Code == pgpmail.VerifyFailed {
+		result.FailureMessage = status.FailureMessage
+	}
+
+	if status.SignerKeyId != 0 {
+		result.SignerKeyId = encodeKeyId(status.SignerKeyId)
+	}
+}
+
+func processOutgoingStatus(status *pgpmail.EncryptStatus, result *ProcessOutgoingResult) {
+	result.ResultCode = status.Code
+	if status.Code == pgpmail.StatusFailed {
+		result.FailureMessage = status.FailureMessage
+	}
+
+	if status.Code == pgpmail.StatusFailedNeedPubkeys {
+		result.MissingKeyAddresses = status.MissingKeys
+	}
+
+	if status.Message != nil {
+		result.EmailBody = status.Message.String()
 	}
 }
 
@@ -155,10 +221,16 @@ type ProcessOutgoingResult struct {
 
 func (*Protocol) ProcessOutgoing(args ProcessOutgoingArgs, result *ProcessOutgoingResult) error {
 	logger.Info("Processing ProcessOutgoing")
-	err := processOutgoingMail(args.EmailBody, args.Sign, args.Encrypt, args.Passphrase, result)
+
+	s, err := agent.ProcessOutgoingMail(args.EmailBody, args.Sign, args.Encrypt, args.Passphrase)
 	if err != nil {
 		return err
 	}
+
+	if s != nil {
+		processOutgoingStatus(s, result)
+	}
+
 	//result.EmailBody = body
 	return nil
 }

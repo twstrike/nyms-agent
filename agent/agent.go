@@ -10,6 +10,7 @@ import (
 
 	"github.com/twstrike/nyms-agent/hkps"
 	"github.com/twstrike/nyms-agent/keymgr"
+	"github.com/twstrike/pgpmail"
 )
 
 func UnlockPrivateKey(keyID string, passphrase []byte) (bool, error) {
@@ -61,6 +62,56 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 	}
 
 	return keymgr.KeySource().GetPublicKeyById(id), nil
+}
+
+type IncomingMail struct {
+	*pgpmail.Message
+	*pgpmail.DecryptionStatus
+	*pgpmail.VerifyStatus
+}
+
+func ProcessIncomingMail(body string, passphrase []byte) (*IncomingMail, error) {
+	m, err := pgpmail.ParseMessage(body)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &IncomingMail{
+		Message: m,
+	}
+
+	if isEncrypted(m) {
+		ret.DecryptionStatus = m.DecryptWith(keymgr.KeySource(), passphrase)
+	}
+
+	if isSigned(m) {
+		ret.VerifyStatus = m.Verify(keymgr.KeySource())
+	}
+
+	return ret, nil
+}
+
+func ProcessOutgoingMail(body string, sign, encrypt bool, passphrase string) (*pgpmail.EncryptStatus, error) {
+	//XXX Why there's only EncryptStatus and no SignStatus?
+
+	m, err := pgpmail.ParseMessage(body)
+	if err != nil {
+		return nil, err
+	}
+
+	if !encrypt && !sign {
+		return nil, nil
+	}
+
+	if !encrypt {
+		return m.Sign(keymgr.KeySource(), passphrase), nil
+	}
+
+	if sign {
+		return m.EncryptAndSign(keymgr.KeySource(), passphrase), nil
+	}
+
+	return m.Encrypt(keymgr.KeySource()), nil
 }
 
 //XXX This is long key ID
