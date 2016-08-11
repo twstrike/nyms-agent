@@ -303,7 +303,7 @@ func catchPanic(err *error, fname string) {
 //
 type UpdateExpirationForArgs struct {
 	KeyId        string
-	Expiratation int
+	Expiratation uint32
 }
 
 func (*Protocol) UpdateExpirationFor(args UpdateExpirationForArgs, result *bool) error {
