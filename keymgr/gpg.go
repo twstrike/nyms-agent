@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/twstrike/pgpmail"
 
@@ -56,19 +57,58 @@ func UnlockPrivateKey(e *openpgp.Entity, passphrase []byte) (bool, error) {
 
 	err := e.PrivateKey.Decrypt(passphrase)
 	if err == nil {
-		decryptSubkeys(e, passphrase)
+		err = decryptSubkeys(e, passphrase)
 	}
-
+	go lockInSeconds(30, e, passphrase)
 	return (err == nil), nil
 }
 
-func decryptSubkeys(e *openpgp.Entity, passphrase []byte) {
+func lockInSeconds(n int, e *openpgp.Entity, passphrase []byte) {
+	<-time.Tick(time.Duration(n) * time.Second)
+	encryptPrivateKey(e, passphrase)
+}
+
+func decryptSubkeys(e *openpgp.Entity, passphrase []byte) error {
 	if e.Subkeys == nil {
-		return
+		return nil
 	}
 	for _, sk := range e.Subkeys {
 		if sk.PrivateKey != nil && sk.PrivateKey.Encrypted {
-			sk.PrivateKey.Decrypt(passphrase)
+			err := sk.PrivateKey.Decrypt(passphrase)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
+}
+
+func encryptPrivateKey(e *openpgp.Entity, passphrase []byte) (bool, error) {
+	if e.PrivateKey == nil {
+		return false, errors.New("no private key")
+	}
+	if e.PrivateKey.Encrypted {
+		return true, nil
+	}
+
+	err := e.PrivateKey.Encrypt(passphrase)
+	if err == nil {
+		err = encryptSubkeys(e, passphrase)
+	}
+	return (err == nil), nil
+}
+
+func encryptSubkeys(e *openpgp.Entity, passphrase []byte) error {
+	if e.Subkeys == nil {
+		return nil
+	}
+	for _, sk := range e.Subkeys {
+		if sk.PrivateKey != nil && !sk.PrivateKey.Encrypted {
+			err := sk.PrivateKey.Encrypt(passphrase)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

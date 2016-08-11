@@ -17,7 +17,7 @@ func TestInternalKeyring(t *testing.T) {
 
 func TestGenerateKey(t *testing.T) {
 	nymsDirectory = "../testdata/tmp"
-	e, err := generateNewKey("foo", "", "foo@bar.com", openpgpTestConfig())
+	e, err := generateNewKey("foo", "", "foo@bar.com", openpgpTestConfig(), []byte("pass"))
 	if err != nil {
 		t.Errorf("error generating key %v", err)
 	}
@@ -25,5 +25,9 @@ func TestGenerateKey(t *testing.T) {
 	fp := hex.EncodeToString(e.PrimaryKey.Fingerprint[:])
 	if fp != expectedGeneratedFingerprint {
 		t.Error("Generated key does not have expected fingerprint")
+	}
+	err = e.PrivateKey.Decrypt([]byte("pass"))
+	if err != nil {
+		t.Errorf("error decrypting key %v", err)
 	}
 }

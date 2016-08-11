@@ -184,8 +184,8 @@ func entityMatchesEmail(email string, e *openpgp.Entity) bool {
 	return false
 }
 
-func GenerateNewKey(name, comment, email string) (*openpgp.Entity, error) {
-	return generateNewKey(name, comment, email, nil)
+func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.Entity, error) {
+	return generateNewKey(name, comment, email, nil, passphrase)
 }
 
 func ArmorPublicKey(e *openpgp.Entity) (string, error) {
@@ -214,8 +214,12 @@ func exportArmoredKey(e *openpgp.Entity, header string, writeKey func(io.Writer)
 	return b.String(), nil
 }
 
-func generateNewKey(name, comment, email string, config *packet.Config) (*openpgp.Entity, error) {
+func generateNewKey(name, comment, email string, config *packet.Config, passphrase []byte) (*openpgp.Entity, error) {
 	e, err := openpgp.NewEntity(name, comment, email, config)
+	if err != nil {
+		return nil, err
+	}
+	err = e.PrivateKey.Encrypt(passphrase)
 	if err != nil {
 		return nil, err
 	}

@@ -252,14 +252,15 @@ func (*Protocol) UnlockPrivateKey(args UnlockPrivateKeyArgs, result *bool) error
 // Protocol.GenerateKeys
 //
 type GenerateKeysArgs struct {
-	RealName string
-	Email    string
-	Comment  string
+	RealName   string
+	Email      string
+	Comment    string
+	Passphrase string
 }
 
 func (*Protocol) GenerateKeys(args GenerateKeysArgs, result *GetKeyInfoResult) error {
 	logger.Info("Processing GenerateKeys")
-	e, err := agent.GenerateNewKey(args.RealName, args.Comment, args.Email)
+	e, err := agent.GenerateNewKey(args.RealName, args.Comment, args.Email, []byte(args.Passphrase))
 	if err != nil {
 		return err
 	}
