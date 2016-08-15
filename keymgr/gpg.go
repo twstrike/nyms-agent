@@ -34,13 +34,13 @@ func UnlockPrivateKey(e *openpgp.Entity, passphrase []byte) error {
 	if err == nil {
 		err = decryptSubkeys(e, passphrase)
 	}
-	go lockInSeconds(30, e, passphrase)
+	go lockInSeconds(30, e)
 	return err
 }
 
-func lockInSeconds(n int, e *openpgp.Entity, passphrase []byte) {
+func lockInSeconds(n int, e *openpgp.Entity) {
 	<-time.Tick(time.Duration(n) * time.Second)
-	encryptPrivateKey(e, passphrase)
+	forgetDecryptedKey(e)
 }
 
 func decryptSubkeys(e *openpgp.Entity, passphrase []byte) error {
@@ -86,4 +86,8 @@ func encryptSubkeys(e *openpgp.Entity, passphrase []byte) error {
 		}
 	}
 	return nil
+}
+
+func forgetDecryptedKey(e *openpgp.Entity) error {
+	return GetKeySource().ForgetSecretKey(e)
 }

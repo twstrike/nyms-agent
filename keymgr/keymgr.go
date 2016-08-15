@@ -2,6 +2,7 @@ package keymgr
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"sync"
 
 	gl "github.com/op/go-logging"
-	"github.com/twstrike/pgpmail"
 
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
@@ -27,8 +27,22 @@ var logger = gl.MustGetLogger("keymgr")
 
 var nymsDirectory = ""
 
-var defaultKeys pgpmail.KeySource
-var internalKeys pgpmail.KeySource
+type KeySource interface {
+	GetPublicKeyRing() openpgp.EntityList
+	GetPublicKey(address string) (*openpgp.Entity, error)
+	GetAllPublicKeys(address string) (openpgp.EntityList, error)
+	GetPublicKeyById(keyid uint64) *openpgp.Entity
+
+	GetSecretKey(address string) (*openpgp.Entity, error)
+	GetAllSecretKeys(address string) (openpgp.EntityList, error)
+	GetSecretKeyById(keyid uint64) *openpgp.Entity
+	GetSecretKeyRing() openpgp.EntityList
+
+	ForgetSecretKey(entity *openpgp.Entity) error
+}
+
+var defaultKeys KeySource
+var internalKeys KeySource
 
 type keyStore struct {
 	publicKeys openpgp.EntityList
@@ -74,7 +88,7 @@ func Load(conf *Conf) (err error) {
 	return
 }
 
-func loadKeyringAt(rootPath string) (pgpmail.KeySource, error) {
+func loadKeyringAt(rootPath string) (KeySource, error) {
 	pubpath := filepath.Join(rootPath, pubring)
 	secpath := filepath.Join(rootPath, secring)
 	publicEntities, err := loadKeyringFile(pubpath)
@@ -105,17 +119,17 @@ func initNymsDir(dir string) {
 	}
 }
 
-func KeySource() pgpmail.KeySource {
-	return &combinedKeySource{[]pgpmail.KeySource{
+func GetKeySource() KeySource {
+	return &combinedKeySource{[]KeySource{
 		internalKeys, defaultKeys,
 	}}
 }
 
-func DefaultKeySource() pgpmail.KeySource {
+func DefaultKeySource() KeySource {
 	return defaultKeys
 }
 
-func InternalKeySource() pgpmail.KeySource {
+func InternalKeySource() KeySource {
 	return internalKeys
 }
 
@@ -140,7 +154,7 @@ func (store *keyStore) GetSecretKey(address string) (*openpgp.Entity, error) {
 	if len(el) > 0 {
 		return el[0], nil
 	}
-	return nil, nil
+	return nil, errors.New("SecretKey Not found")
 }
 
 func (store *keyStore) GetAllSecretKeys(address string) (openpgp.EntityList, error) {
@@ -153,6 +167,16 @@ func (store *keyStore) GetSecretKeyById(keyid uint64) *openpgp.Entity {
 		return ks[0].Entity
 	}
 	return nil
+}
+
+func (store *keyStore) ForgetSecretKey(entity *openpgp.Entity) error {
+	for i := range store.secretKeys {
+		if store.secretKeys[i] == entity {
+			store.secretKeys = append(store.secretKeys[:i], store.secretKeys[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("secretkey to be forgotten not found")
 }
 
 func (store *keyStore) GetPublicKeyById(keyid uint64) *openpgp.Entity {

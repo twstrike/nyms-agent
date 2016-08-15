@@ -14,11 +14,11 @@ import (
 )
 
 func GetPublicKeyRing() openpgp.EntityList {
-	return keymgr.KeySource().GetPublicKeyRing()
+	return keymgr.GetKeySource().GetPublicKeyRing()
 }
 
 func GetSecretKeyRing() openpgp.EntityList {
-	return keymgr.KeySource().GetSecretKeyRing()
+	return keymgr.GetKeySource().GetSecretKeyRing()
 }
 
 func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.Entity, error) {
@@ -32,10 +32,10 @@ func UnlockPrivateKey(keyID string, passphrase []byte) error {
 		return err
 	}
 
-	k := keymgr.KeySource().GetSecretKeyById(id)
+	k := keymgr.GetKeySource().GetSecretKeyById(id)
 	if k == nil {
 		keymgr.Load(nil)
-		if k = keymgr.KeySource().GetSecretKeyById(id); k == nil {
+		if k = keymgr.GetKeySource().GetSecretKeyById(id); k == nil {
 			return errors.New("No key found for given KeyId")
 		}
 	}
@@ -60,17 +60,17 @@ func PublishToKeyserver(longKeyID, serverAddress string) error {
 }
 
 func GetEntityByEmail(email string) (*openpgp.Entity, error) {
-	if k, err := keymgr.KeySource().GetSecretKey(email); k != nil {
+	if k, err := keymgr.GetKeySource().GetSecretKey(email); k != nil {
 		return k, err
 	}
 
 	// Load keys from keyring file again for locked case
 	keymgr.Load(nil)
-	if k, err := keymgr.KeySource().GetSecretKey(email); k != nil {
+	if k, err := keymgr.GetKeySource().GetSecretKey(email); k != nil {
 		return k, err
 	}
 
-	return keymgr.KeySource().GetPublicKey(email)
+	return keymgr.GetKeySource().GetPublicKey(email)
 }
 
 func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
@@ -79,17 +79,17 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 		return nil, fmt.Errorf("Error decoding received key id: ", err)
 	}
 
-	if k := keymgr.KeySource().GetSecretKeyById(id); k != nil {
+	if k := keymgr.GetKeySource().GetSecretKeyById(id); k != nil {
 		return k, nil
 	}
 
 	// Load keys from keyring file again for locked case
 	keymgr.Load(nil)
-	if k := keymgr.KeySource().GetSecretKeyById(id); k != nil {
+	if k := keymgr.GetKeySource().GetSecretKeyById(id); k != nil {
 		return k, nil
 	}
 
-	return keymgr.KeySource().GetPublicKeyById(id), nil
+	return keymgr.GetKeySource().GetPublicKeyById(id), nil
 }
 
 type IncomingMail struct {
@@ -109,11 +109,11 @@ func ProcessIncomingMail(body string, passphrase []byte) (*IncomingMail, error) 
 	}
 
 	if isEncrypted(m) {
-		ret.DecryptionStatus = m.DecryptWith(keymgr.KeySource(), passphrase)
+		ret.DecryptionStatus = m.DecryptWith(keymgr.GetKeySource(), passphrase)
 	}
 
 	if isSigned(m) {
-		ret.VerifyStatus = m.Verify(keymgr.KeySource())
+		ret.VerifyStatus = m.Verify(keymgr.GetKeySource())
 	}
 
 	return ret, nil
@@ -132,14 +132,14 @@ func ProcessOutgoingMail(body string, sign, encrypt bool, passphrase string) (*p
 	}
 
 	if !encrypt {
-		return m.Sign(keymgr.KeySource(), passphrase), nil
+		return m.Sign(keymgr.GetKeySource(), passphrase), nil
 	}
 
 	if sign {
-		return m.EncryptAndSign(keymgr.KeySource(), passphrase), nil
+		return m.EncryptAndSign(keymgr.GetKeySource(), passphrase), nil
 	}
 
-	return m.Encrypt(keymgr.KeySource()), nil
+	return m.Encrypt(keymgr.GetKeySource()), nil
 }
 
 //XXX This is long key ID
