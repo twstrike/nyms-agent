@@ -35,14 +35,13 @@ func main() {
 
 	var updateExpirationForArgs = protocol.UpdateExpirationForArgs{
 		KeyId:        "97372B211CADF401",
-		Expiratation: 1000000,
+		Expiratation: 10000,
 	}
 	var succeed bool
 	err = c.Call("Protocol.UpdateExpirationFor", updateExpirationForArgs, &succeed)
 	if err != nil {
 		log.Fatal("UpdateExpirationFor error: ", err)
 	}
-	fmt.Printf("\n expiration: %v\n", succeed)
 
 	publishReturn := &protocol.PublishToKeyserverResult{}
 	err = c.Call("Protocol.PublishToKeyserver", protocol.PublishToKeyserverArgs{

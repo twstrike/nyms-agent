@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/packet"
 
 	"github.com/twstrike/nyms-agent/hkps"
 	"github.com/twstrike/nyms-agent/keymgr"
@@ -156,12 +158,26 @@ func decodeKeyId(keyId string) (uint64, error) {
 
 func UpdateExpirationFor(keyId string, expirationSecs uint32) (bool, error) {
 	entity, err := GetEntityByKeyId(keyId)
+
 	if err != nil {
 		return false, err
 	}
 
-	selfSig := primaryIdentity(entity).SelfSignature
-	selfSig.KeyLifetimeSecs = &expirationSecs
+	old := primaryIdentity(entity).SelfSignature
+
+	primaryIdentity(entity).SelfSignature = &packet.Signature{
+		CreationTime:    time.Now(),
+		SigType:         old.SigType,
+		PubKeyAlgo:      old.PubKeyAlgo,
+		Hash:            old.Hash,
+		IsPrimaryId:     old.IsPrimaryId,
+		FlagsValid:      true,
+		FlagSign:        true,
+		FlagCertify:     true,
+		IssuerKeyId:     &entity.PrimaryKey.KeyId,
+		KeyLifetimeSecs: &expirationSecs,
+	}
+
 	return true, nil
 }
 
