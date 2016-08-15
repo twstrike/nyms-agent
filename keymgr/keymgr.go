@@ -17,9 +17,6 @@ import (
 	"golang.org/x/crypto/openpgp/packet"
 )
 
-const publicKeyArmorHeader = "PGP PUBLIC KEY BLOCK"
-const secretKeyArmorHeader = "PGP PRIVATE KEY BLOCK"
-
 const pubring = "pubring.gpg"
 const secring = "secring.gpg"
 
@@ -231,13 +228,13 @@ func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.En
 }
 
 func ArmorPublicKey(e *openpgp.Entity) (string, error) {
-	return exportArmoredKey(e, publicKeyArmorHeader, func(w io.Writer) error {
+	return exportArmoredKey(e, openpgp.PublicKeyType, func(w io.Writer) error {
 		return e.Serialize(w)
 	})
 }
 
 func ArmorSecretKey(e *openpgp.Entity) (string, error) {
-	return exportArmoredKey(e, secretKeyArmorHeader, func(w io.Writer) error {
+	return exportArmoredKey(e, openpgp.PrivateKeyType, func(w io.Writer) error {
 		return e.SerializePrivate(w, nil)
 	})
 }
