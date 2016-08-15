@@ -8,6 +8,7 @@ import (
 
 	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/agent"
+	"github.com/twstrike/nyms-agent/hkps"
 	"github.com/twstrike/pgpmail"
 )
 
@@ -312,5 +313,26 @@ func (*Protocol) UpdateExpirationFor(args UpdateExpirationForArgs, result *bool)
 	ok, err := agent.UpdateExpirationFor(args.KeyId, args.Expiratation)
 
 	*result = ok
+	return err
+}
+
+//
+// protocol.KeyserverLookup
+//
+
+type KeyserverLookupArgs struct {
+	Search    string
+	KeyServer string
+}
+
+type KeyserverLookupResult struct {
+	Indexes []*hkps.Index //XXX Is there any problem if this is a pointer?
+}
+
+func (*Protocol) KeyserverLookup(args KeyserverLookupArgs, result *KeyserverLookupResult) error {
+	logger.Info("Processing.KeyserverLookup")
+
+	var err error
+	result.Indexes, err = agent.KeyserverLookup(args.KeyServer, args.Search)
 	return err
 }

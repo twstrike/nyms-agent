@@ -162,3 +162,12 @@ func primaryIdentity(e *openpgp.Entity) *openpgp.Identity {
 	}
 	return firstIdentity
 }
+
+func KeyserverLookup(serverAddress, search string) ([]*hkps.Index, error) {
+	ks, err := hkps.NewClient(serverAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return ks.Lookup(search)
+}

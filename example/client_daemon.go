@@ -57,4 +57,16 @@ func main() {
 	}
 
 	fmt.Printf("publishResult: %v\n", publishReturn)
+
+	lookupReturn := &protocol.KeyserverLookupResult{}
+	err = c.Call("Protocol.KeyserverLookup", protocol.KeyserverLookupArgs{
+		Search:    "nyms",
+		KeyServer: "hkp://localhost:11371",
+	}, lookupReturn)
+
+	if err != nil {
+		log.Fatal("KeyserverLookup error:", err)
+	}
+
+	fmt.Printf("lookupResult: %#v\n", lookupReturn)
 }
