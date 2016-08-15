@@ -7,7 +7,7 @@ import (
 )
 
 func TestInternalKeyring(t *testing.T) {
-	internalKeys, _ := loadInternalKeyring("../testdata/nyms-datadir")
+	internalKeys, _ := loadKeyringAt("../testdata/nyms-datadir")
 
 	_, err := internalKeys.GetSecretKey("agent@nyms.io")
 	if err != nil {

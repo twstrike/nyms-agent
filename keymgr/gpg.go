@@ -3,35 +3,10 @@ package keymgr
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"time"
-
-	"github.com/twstrike/pgpmail"
 
 	"golang.org/x/crypto/openpgp"
 )
-
-const pubring = "pubring.gpg"
-const secring = "secring.gpg"
-
-func loadDefaultKeyringAt(rootPath string) (pgpmail.KeySource, error) {
-	pubpath := filepath.Join(rootPath, pubring)
-	secpath := filepath.Join(rootPath, secring)
-	publicEntities, err := loadKeyringFile(pubpath)
-	if err != nil {
-		return nil, err
-	}
-
-	secretEntities, err := loadKeyringFile(secpath)
-	if err != nil {
-		return nil, err
-	}
-
-	return &keyStore{
-		publicKeys: publicEntities,
-		secretKeys: secretEntities,
-	}, nil
-}
 
 func loadKeyringFile(path string) (openpgp.EntityList, error) {
 	f, err := os.Open(path)

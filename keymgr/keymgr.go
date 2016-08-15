@@ -20,8 +20,8 @@ import (
 const publicKeyArmorHeader = "PGP PUBLIC KEY BLOCK"
 const secretKeyArmorHeader = "PGP PRIVATE KEY BLOCK"
 
-const publicKeyringFilename = "nymskeys.pub"
-const secretKeyringFilename = "nymskeys.sec"
+const pubring = "pubring.gpg"
+const secring = "secring.gpg"
 
 var logger = gl.MustGetLogger("keymgr")
 
@@ -65,13 +65,32 @@ func Load(conf *Conf) (err error) {
 		}
 	}
 
-	defaultKeys, err = loadDefaultKeyringAt(conf.GPGConfDir)
+	defaultKeys, err = loadKeyringAt(conf.GPGConfDir)
 	if err != nil {
 		return
 	}
 
-	internalKeys, err = loadInternalKeyring(conf.NymsConfDir)
+	internalKeys, err = loadKeyringAt(conf.NymsConfDir)
 	return
+}
+
+func loadKeyringAt(rootPath string) (pgpmail.KeySource, error) {
+	pubpath := filepath.Join(rootPath, pubring)
+	secpath := filepath.Join(rootPath, secring)
+	publicEntities, err := loadKeyringFile(pubpath)
+	if err != nil {
+		return nil, err
+	}
+
+	secretEntities, err := loadKeyringFile(secpath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &keyStore{
+		publicKeys: publicEntities,
+		secretKeys: secretEntities,
+	}, nil
 }
 
 func initNymsDir(dir string) {
@@ -228,13 +247,13 @@ func generateNewKey(name, comment, email string, config *packet.Config, passphra
 }
 
 func addSecretKey(e *openpgp.Entity) error {
-	return serializeKey(e, secretKeyringFilename, func(w io.Writer) error {
+	return serializeKey(e, secring, func(w io.Writer) error {
 		return e.SerializePrivate(w, nil)
 	})
 }
 
 func AddPublicKey(e *openpgp.Entity) error {
-	return serializeKey(e, publicKeyringFilename, func(w io.Writer) error {
+	return serializeKey(e, pubring, func(w io.Writer) error {
 		return e.Serialize(w)
 	})
 }

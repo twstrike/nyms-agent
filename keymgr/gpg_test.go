@@ -8,7 +8,7 @@ import (
 )
 
 func TestLocalKeyring(t *testing.T) {
-	localKeyRing, _ := loadDefaultKeyringAt("../testdata/gpg-datadir")
+	localKeyRing, _ := loadKeyringAt("../testdata/gpg-datadir")
 	_, err := localKeyRing.GetSecretKey("agent@nyms.io")
 	if err != nil {
 		t.Error("error looking up key")
