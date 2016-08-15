@@ -243,9 +243,9 @@ type UnlockPrivateKeyArgs struct {
 
 func (*Protocol) UnlockPrivateKey(args UnlockPrivateKeyArgs, result *bool) error {
 	logger.Info("Processing.UnlockPrivateKey")
-	ok, err := agent.UnlockPrivateKey(args.KeyId, []byte(args.Passphrase))
+	err := agent.UnlockPrivateKey(args.KeyId, []byte(args.Passphrase))
 
-	*result = ok
+	*result = (err == nil)
 	return err
 }
 

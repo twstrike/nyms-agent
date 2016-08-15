@@ -17,16 +17,16 @@ func TestLocalKeyring(t *testing.T) {
 
 func TestUnlockPrivateWithWrongPassword(t *testing.T) {
 	k := getLockedKey()
-	ok, _ := UnlockPrivateKey(k, []byte("wrong"))
-	if ok {
+	err := UnlockPrivateKey(k, []byte("wrong"))
+	if err == nil {
 		t.Error("Unlocking private key with incorrect passphrase did not fail as expected")
 	}
 }
 
 func TestUnlockPrivate(t *testing.T) {
 	k := getLockedKey()
-	ok, err := UnlockPrivateKey(k, []byte("password"))
-	if !ok || err != nil {
+	err := UnlockPrivateKey(k, []byte("password"))
+	if err != nil {
 		t.Error("Unlocking private key failed")
 	}
 }

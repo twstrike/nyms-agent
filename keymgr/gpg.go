@@ -21,13 +21,13 @@ func loadKeyringFile(path string) (openpgp.EntityList, error) {
 	return el, nil
 }
 
-func UnlockPrivateKey(e *openpgp.Entity, passphrase []byte) (bool, error) {
+func UnlockPrivateKey(e *openpgp.Entity, passphrase []byte) error {
 	if e.PrivateKey == nil {
-		return false, errors.New("no private key")
+		return errors.New("no private key")
 	}
 
 	if e.PrivateKey.Encrypted == false {
-		return true, nil
+		return nil
 	}
 
 	err := e.PrivateKey.Decrypt(passphrase)
@@ -35,7 +35,7 @@ func UnlockPrivateKey(e *openpgp.Entity, passphrase []byte) (bool, error) {
 		err = decryptSubkeys(e, passphrase)
 	}
 	go lockInSeconds(30, e, passphrase)
-	return (err == nil), nil
+	return err
 }
 
 func lockInSeconds(n int, e *openpgp.Entity, passphrase []byte) {

@@ -25,16 +25,19 @@ func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.En
 	return keymgr.GenerateNewKey(name, comment, email, passphrase)
 }
 
-func UnlockPrivateKey(keyID string, passphrase []byte) (bool, error) {
+func UnlockPrivateKey(keyID string, passphrase []byte) error {
 	//TODO use GetEntityByKeyId
 	id, err := decodeKeyId(keyID)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	k := keymgr.KeySource().GetSecretKeyById(id)
 	if k == nil {
-		return false, errors.New("No key found for given KeyId")
+		keymgr.Load(nil)
+		if k = keymgr.KeySource().GetSecretKeyById(id); k == nil {
+			return errors.New("No key found for given KeyId")
+		}
 	}
 
 	//XXX Why not returning an error if it failed to unlock?
@@ -61,6 +64,12 @@ func GetEntityByEmail(email string) (*openpgp.Entity, error) {
 		return k, err
 	}
 
+	// Load keys from keyring file again for locked case
+	keymgr.Load(nil)
+	if k, err := keymgr.KeySource().GetSecretKey(email); k != nil {
+		return k, err
+	}
+
 	return keymgr.KeySource().GetPublicKey(email)
 }
 
@@ -70,6 +79,12 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 		return nil, fmt.Errorf("Error decoding received key id: ", err)
 	}
 
+	if k := keymgr.KeySource().GetSecretKeyById(id); k != nil {
+		return k, nil
+	}
+
+	// Load keys from keyring file again for locked case
+	keymgr.Load(nil)
 	if k := keymgr.KeySource().GetSecretKeyById(id); k != nil {
 		return k, nil
 	}
