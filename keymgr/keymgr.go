@@ -125,14 +125,6 @@ func GetKeySource() KeySource {
 	}}
 }
 
-func DefaultKeySource() KeySource {
-	return defaultKeys
-}
-
-func InternalKeySource() KeySource {
-	return internalKeys
-}
-
 // GetPublicKey returns the best public key for the e-mail address
 // specified or nil if no key is available
 func (store *keyStore) GetPublicKey(address string) (*openpgp.Entity, error) {
@@ -140,45 +132,16 @@ func (store *keyStore) GetPublicKey(address string) (*openpgp.Entity, error) {
 	if len(el) > 0 {
 		return el[0], nil
 	}
-	return nil, nil
+	return nil, errors.New("PublicKey Not found")
 }
 
+// GetAllPublicKeys returns all the public key for the e-mail address
+// specified or nil if no key is available
 func (store *keyStore) GetAllPublicKeys(address string) (openpgp.EntityList, error) {
 	return store.lookupPublicKey(address), nil
 }
 
-// GetSecret returns the best secret key for the e-mail address
-// specified or nil if no key is available
-func (store *keyStore) GetSecretKey(address string) (*openpgp.Entity, error) {
-	el := store.lookupSecretKey(address)
-	if len(el) > 0 {
-		return el[0], nil
-	}
-	return nil, errors.New("SecretKey Not found")
-}
-
-func (store *keyStore) GetAllSecretKeys(address string) (openpgp.EntityList, error) {
-	return store.lookupSecretKey(address), nil
-}
-
-func (store *keyStore) GetSecretKeyById(keyid uint64) *openpgp.Entity {
-	ks := store.secretKeys.KeysById(keyid)
-	if len(ks) > 0 {
-		return ks[0].Entity
-	}
-	return nil
-}
-
-func (store *keyStore) ForgetSecretKey(entity *openpgp.Entity) error {
-	for i := range store.secretKeys {
-		if store.secretKeys[i] == entity {
-			store.secretKeys = append(store.secretKeys[:i], store.secretKeys[i+1:]...)
-			return nil
-		}
-	}
-	return errors.New("secretkey to be forgotten not found")
-}
-
+// GetPublicKeyById returns the public keys with keyid
 func (store *keyStore) GetPublicKeyById(keyid uint64) *openpgp.Entity {
 	ks := store.publicKeys.KeysById(keyid)
 	if len(ks) > 0 {
@@ -192,9 +155,45 @@ func (store *keyStore) GetPublicKeyRing() openpgp.EntityList {
 	return store.publicKeys
 }
 
+// GetSecretKey returns the best secret key for the e-mail address
+// specified or nil if no key is available
+func (store *keyStore) GetSecretKey(address string) (*openpgp.Entity, error) {
+	el := store.lookupSecretKey(address)
+	if len(el) > 0 {
+		return el[0], nil
+	}
+	return nil, errors.New("SecretKey Not found")
+}
+
+// GetAllSecretKeys returns all the secret key for the e-mail address
+// specified or nil if no key is available
+func (store *keyStore) GetAllSecretKeys(address string) (openpgp.EntityList, error) {
+	return store.lookupSecretKey(address), nil
+}
+
+// GetSecretKeyById returns the secret keys with keyid
+func (store *keyStore) GetSecretKeyById(keyid uint64) *openpgp.Entity {
+	ks := store.secretKeys.KeysById(keyid)
+	if len(ks) > 0 {
+		return ks[0].Entity
+	}
+	return nil
+}
+
 // GetSecretKeyRing returns a list of all known private keys
 func (store *keyStore) GetSecretKeyRing() openpgp.EntityList {
 	return store.secretKeys
+}
+
+// ForgetSecretKey forgets a secretkey by removing it from the secretKeys EntityList
+func (store *keyStore) ForgetSecretKey(entity *openpgp.Entity) error {
+	for i := range store.secretKeys {
+		if store.secretKeys[i] == entity {
+			store.secretKeys = append(store.secretKeys[:i], store.secretKeys[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("secretkey to be forgotten not found")
 }
 
 func (store *keyStore) lookupPublicKey(email string) openpgp.EntityList {
