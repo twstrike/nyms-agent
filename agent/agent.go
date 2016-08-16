@@ -3,7 +3,6 @@ package agent
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"time"
 
@@ -29,24 +28,31 @@ func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.En
 	return keymgr.GenerateNewKey(name, comment, email, passphrase)
 }
 
+// func Encrypt(keyID string, data []byte) error {
+// 	id, err := decodeKeyId(keyID)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	k := keymgr.GetKeyLocker().GetSecretKeyById(id)
+// 	if k == nil {
+// 		errors.New("not found")
+// 	}
+// 	if k.Encrypted {
+// 		errors.New("encrypted")
+// 	}
+// 	k.SymmetricEncrypt(data)
+//
+// 	return nil
+// }
+
 func UnlockPrivateKey(keyID string, passphrase []byte) error {
-	//TODO use GetEntityByKeyId
+	keymgr.Load(nil)
 	id, err := decodeKeyId(keyID)
 	if err != nil {
 		return err
 	}
-
-	//XXX Why reloading if the key cant be found?
-	k := keymgr.GetKeySource().GetSecretKeyById(id)
-	if k == nil {
-		keymgr.Load(nil)
-		if k = keymgr.GetKeySource().GetSecretKeyById(id); k == nil {
-			return errors.New("No key found for given KeyId")
-		}
-	}
-
-	//XXX Why not returning an error if it failed to unlock?
-	return keymgr.UnlockPrivateKey(k, passphrase)
+	return keymgr.GetKeyLocker().UnlockSecretKeyById(id, passphrase)
 }
 
 func PublishToKeyserver(longKeyID, serverAddress string) error {
@@ -74,13 +80,6 @@ func GetEntityByEmail(email string) (*openpgp.Entity, error) {
 		return k, err
 	}
 
-	// Load keys from keyring file again for locked case
-	//XXX Why reloading if the key cant be found?
-	keymgr.Load(nil)
-	if k, err := keymgr.GetKeySource().GetSecretKey(email); k != nil {
-		return k, err
-	}
-
 	return keymgr.GetKeySource().GetPublicKey(email)
 }
 
@@ -90,12 +89,6 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 		return nil, fmt.Errorf("Error decoding received key id: ", err)
 	}
 
-	if k := keymgr.GetKeySource().GetSecretKeyById(id); k != nil {
-		return k, nil
-	}
-
-	// Load keys from keyring file again for locked case
-	keymgr.Load(nil)
 	if k := keymgr.GetKeySource().GetSecretKeyById(id); k != nil {
 		return k, nil
 	}

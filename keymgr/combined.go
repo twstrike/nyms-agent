@@ -95,13 +95,3 @@ func (s *combinedKeySource) GetSecretKeyRing() openpgp.EntityList {
 	}
 	return nil
 }
-
-func (s *combinedKeySource) ForgetSecretKey(entity *openpgp.Entity) error {
-	for _, this := range s.sources {
-		if k := this.ForgetSecretKey(entity); k != nil {
-			return k
-		}
-	}
-
-	return nil
-}

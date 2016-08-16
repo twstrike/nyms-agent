@@ -22,8 +22,9 @@ func init() {
 
 	//XXX Get config dir from params
 	err := keymgr.Load(&keymgr.Conf{
-		GPGConfDir:  "./testdata/gpg-datadir",
-		NymsConfDir: "./testdata/nyms-datadir",
+		GPGConfDir:     "./testdata/gpg-datadir",
+		NymsConfDir:    "./testdata/nyms-datadir",
+		UnlockDuration: 5,
 	})
 
 	if err != nil {

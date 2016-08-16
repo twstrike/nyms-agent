@@ -29,8 +29,6 @@ type KeySource interface {
 	GetAllSecretKeys(address string) (openpgp.EntityList, error)
 	GetSecretKeyById(keyid uint64) *openpgp.Entity
 	GetSecretKeyRing() openpgp.EntityList
-
-	ForgetSecretKey(entity *openpgp.Entity) error
 }
 
 type KeyManager interface {
@@ -43,8 +41,9 @@ type KeyManager interface {
 var defaultKeys, internalKeys *keyStore
 
 type Conf struct {
-	GPGConfDir  string
-	NymsConfDir string
+	GPGConfDir     string
+	NymsConfDir    string
+	UnlockDuration int
 }
 
 var currentConf *Conf
@@ -73,7 +72,6 @@ func Load(conf *Conf) (err error) {
 			panic(err)
 		}
 	}
-	fmt.Println("conf", conf)
 
 	defaultKeys, err = loadKeySourceAt(conf.GPGConfDir)
 	if err != nil {
@@ -84,6 +82,7 @@ func Load(conf *Conf) (err error) {
 	if err != nil {
 		return
 	}
+	locker.KeySource = internalKeys
 
 	currentConf = conf
 	return
