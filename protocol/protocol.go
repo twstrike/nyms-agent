@@ -100,6 +100,9 @@ func (*Protocol) GetKeyInfo(args GetKeyInfoArgs, result *GetKeyInfoResult) error
 	if err != nil {
 		return err
 	}
+	if k == nil {
+		return errors.New("No Entity found")
+	}
 
 	populateKeyInfo(k, result)
 	return nil

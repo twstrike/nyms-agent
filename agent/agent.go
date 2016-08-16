@@ -16,10 +16,12 @@ import (
 )
 
 func GetPublicKeyRing() openpgp.EntityList {
+	keymgr.Load(nil)
 	return keymgr.GetKeySource().GetPublicKeyRing()
 }
 
 func GetSecretKeyRing() openpgp.EntityList {
+	keymgr.Load(nil)
 	return keymgr.GetKeySource().GetSecretKeyRing()
 }
 

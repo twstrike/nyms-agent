@@ -51,6 +51,8 @@ type Conf struct {
 	NymsConfDir string
 }
 
+var currentConf *Conf
+
 func defaultConf() (*Conf, error) {
 	u, err := user.Current()
 	if err != nil {
@@ -63,18 +65,19 @@ func defaultConf() (*Conf, error) {
 	}, nil
 }
 
-func init() {
-	Load(nil)
-}
-
 //Load initializes the keyrings used by the keymanager
 func Load(conf *Conf) (err error) {
 	if conf == nil {
-		conf, err = defaultConf()
+		if currentConf == nil {
+			conf, err = defaultConf()
+		} else {
+			conf = currentConf
+		}
 		if err != nil {
-			return
+			panic(err)
 		}
 	}
+	fmt.Println("conf", conf)
 
 	defaultKeys, err = loadKeyringAt(conf.GPGConfDir)
 	if err != nil {
@@ -82,6 +85,11 @@ func Load(conf *Conf) (err error) {
 	}
 
 	internalKeys, err = loadKeyringAt(conf.NymsConfDir)
+	if err != nil {
+		return
+	}
+
+	currentConf = conf
 	return
 }
 
@@ -283,7 +291,7 @@ func serializeKey(e *openpgp.Entity, fname string, writeKey func(io.Writer) erro
 	lock.Lock()
 	defer lock.Unlock()
 
-	path := filepath.Join(nymsDirectory, fname)
+	path := filepath.Join(currentConf.NymsConfDir, fname)
 	flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
 
 	f, err := os.OpenFile(path, flags, 0666)

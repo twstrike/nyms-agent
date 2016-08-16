@@ -18,7 +18,6 @@ var guiEnabled bool
 func init() {
 	flag.BoolVar(&pipe, "pipe", false, "Run RPC service on stdin/stdout")
 	flag.BoolVar(&daemonEnabled, "d", false, "Run RPC service on unix domain socket")
-	flag.BoolVar(&guiEnabled, "g", false, "Run gui client")
 	flag.Parse()
 
 	//XXX Get config dir from params

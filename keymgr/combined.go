@@ -1,8 +1,6 @@
 package keymgr
 
-import (
-	"golang.org/x/crypto/openpgp"
-)
+import "golang.org/x/crypto/openpgp"
 
 func combine(sources ...KeySource) KeySource {
 	return &combinedKeySource{
@@ -15,7 +13,13 @@ type combinedKeySource struct {
 }
 
 func (s *combinedKeySource) GetPublicKeyRing() openpgp.EntityList {
-	return nil //TODO
+	//TODO: merge the list
+	for _, this := range s.sources {
+		if kr := this.GetPublicKeyRing(); kr != nil {
+			return kr
+		}
+	}
+	return nil
 }
 
 func (s *combinedKeySource) GetPublicKey(address string) (*openpgp.Entity, error) {
@@ -83,7 +87,13 @@ func (s *combinedKeySource) GetSecretKeyById(keyid uint64) *openpgp.Entity {
 }
 
 func (s *combinedKeySource) GetSecretKeyRing() openpgp.EntityList {
-	return nil //TODO
+	//TODO: merge the list
+	for _, this := range s.sources {
+		if kr := this.GetSecretKeyRing(); kr != nil {
+			return kr
+		}
+	}
+	return nil
 }
 
 func (s *combinedKeySource) ForgetSecretKey(entity *openpgp.Entity) error {
