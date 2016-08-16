@@ -21,10 +21,14 @@ func init() {
 	flag.Parse()
 
 	//XXX Get config dir from params
-	keymgr.Load(&keymgr.Conf{
-		GPGConfDir:  "./testdata/gpg-datadir",
+	err := keymgr.Load(&keymgr.Conf{
+		GPConfDir:   "./testdata/gpg-datadir",
 		NymsConfDir: "./testdata/nyms-datadir",
 	})
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
