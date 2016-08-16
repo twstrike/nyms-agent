@@ -205,7 +205,6 @@ func (pk *PrivateKey) SerializeUnEncrypted(w io.Writer) (err error) {
 }
 
 func (pk *PrivateKey) Serialize(w io.Writer) (err error) {
-	// TODO(agl): support encrypted private keys
 	buf := bytes.NewBuffer(nil)
 	err = pk.PublicKey.serializeWithoutHeaders(buf)
 	if err != nil {

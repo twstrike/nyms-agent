@@ -36,6 +36,7 @@ func UnlockPrivateKey(keyID string, passphrase []byte) error {
 		return err
 	}
 
+	//XXX Why reloading if the key cant be found?
 	k := keymgr.GetKeySource().GetSecretKeyById(id)
 	if k == nil {
 		keymgr.Load(nil)
@@ -74,6 +75,7 @@ func GetEntityByEmail(email string) (*openpgp.Entity, error) {
 	}
 
 	// Load keys from keyring file again for locked case
+	//XXX Why reloading if the key cant be found?
 	keymgr.Load(nil)
 	if k, err := keymgr.GetKeySource().GetSecretKey(email); k != nil {
 		return k, err
@@ -163,6 +165,7 @@ func decodeKeyId(keyId string) (uint64, error) {
 	return binary.BigEndian.Uint64(bs), nil
 }
 
+//XXX Is this done?
 func UpdateExpirationFor(keyId string, expirationSecs uint32) (bool, error) {
 	entity, err := GetEntityByKeyId(keyId)
 

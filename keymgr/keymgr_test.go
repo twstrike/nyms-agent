@@ -2,12 +2,16 @@ package keymgr
 
 import (
 	"encoding/hex"
+	"io/ioutil"
+	"os"
+
+	"golang.org/x/crypto/openpgp"
 
 	"testing"
 )
 
 func TestInternalKeyring(t *testing.T) {
-	internalKeys, _ := loadKeyringAt("../testdata/nyms-datadir")
+	internalKeys, _ := loadKeySourceAt("../testdata/nyms-datadir")
 
 	_, err := internalKeys.GetSecretKey("agent@nyms.io")
 	if err != nil {
@@ -16,7 +20,7 @@ func TestInternalKeyring(t *testing.T) {
 }
 
 func TestGenerateKey(t *testing.T) {
-	nymsDirectory = "../testdata/tmp"
+	internalKeys, _ = loadKeySourceAt("../testdata/tmp")
 	e, err := generateNewKey("foo", "", "foo@bar.com", openpgpTestConfig(), []byte("pass"))
 	if err != nil {
 		t.Errorf("error generating key %v", err)
@@ -33,7 +37,7 @@ func TestGenerateKey(t *testing.T) {
 }
 
 func TestForget(t *testing.T) {
-	internalKeys, err := loadKeyringAt("../testdata/nyms-datadir")
+	internalKeys, err := loadKeySourceAt("../testdata/nyms-datadir")
 	if err != nil {
 		t.Errorf("error load key %s", err)
 	}
@@ -49,5 +53,62 @@ func TestForget(t *testing.T) {
 	_, err = internalKeys.GetSecretKey("agent@nyms.io")
 	if err == nil {
 		t.Errorf("error forget key still found key entity")
+	}
+}
+
+func TestKeyManager(t *testing.T) {
+	os.Remove("../testdata/tmp/pubring.gpg")
+	os.Remove("../testdata/tmp/secring.gpg")
+	manager, _ := loadKeySourceAt("../testdata/tmp")
+
+	_, err := manager.GetSecretKey("secret@nyms.io")
+	if err == nil {
+		t.Errorf("entity should not exist")
+	}
+
+	_, err = manager.GetPublicKey("secret@nyms.io")
+	if err == nil {
+		t.Errorf("entity should not exist")
+	}
+
+	_, err = manager.GetPublicKey("public@nyms.io")
+	if err == nil {
+		t.Errorf("entity should not exist")
+	}
+
+	e, err := openpgp.NewEntity("name", "comment", "secret@nyms.io", nil)
+	if err != nil {
+		t.Errorf("error creating entity: %s", err)
+	}
+
+	err = manager.AddPrivate(e)
+	if err != nil {
+		t.Errorf("error adding entity: %s", err)
+	}
+
+	e, err = openpgp.NewEntity("name", "comment", "public@nyms.io", nil)
+	if err != nil {
+		t.Errorf("error creating entity: %s", err)
+	}
+
+	e.SerializePrivate(ioutil.Discard, nil)
+	err = manager.AddPublic(e)
+	if err != nil {
+		t.Errorf("error adding entity: %s", err)
+	}
+
+	_, err = manager.GetSecretKey("secret@nyms.io")
+	if err != nil {
+		t.Errorf("entity should exist: %s", err)
+	}
+
+	_, err = manager.GetPublicKey("secret@nyms.io")
+	if err != nil {
+		t.Errorf("entity should exist: %s", err)
+	}
+
+	_, err = manager.GetPublicKey("public@nyms.io")
+	if err != nil {
+		t.Errorf("entity should exist: %s", err)
 	}
 }

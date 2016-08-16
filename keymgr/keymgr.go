@@ -2,13 +2,11 @@ package keymgr
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
-	"sync"
 
 	gl "github.com/op/go-logging"
 
@@ -16,9 +14,6 @@ import (
 	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/packet"
 )
-
-const pubring = "pubring.gpg"
-const secring = "secring.gpg"
 
 var logger = gl.MustGetLogger("keymgr")
 
@@ -38,13 +33,14 @@ type KeySource interface {
 	ForgetSecretKey(entity *openpgp.Entity) error
 }
 
-var defaultKeys KeySource
-var internalKeys KeySource
-
-type keyStore struct {
-	publicKeys openpgp.EntityList
-	secretKeys openpgp.EntityList
+type KeyManager interface {
+	AddPrivate(*openpgp.Entity) error
+	AddPublic(*openpgp.Entity) error
+	//Remove(*openpgp.Entity) error
+	//Update(*openpgp.Entity) error
 }
+
+var defaultKeys, internalKeys *keyStore
 
 type Conf struct {
 	GPGConfDir  string
@@ -79,12 +75,12 @@ func Load(conf *Conf) (err error) {
 	}
 	fmt.Println("conf", conf)
 
-	defaultKeys, err = loadKeyringAt(conf.GPGConfDir)
+	defaultKeys, err = loadKeySourceAt(conf.GPGConfDir)
 	if err != nil {
 		return
 	}
 
-	internalKeys, err = loadKeyringAt(conf.NymsConfDir)
+	internalKeys, err = loadKeySourceAt(conf.NymsConfDir)
 	if err != nil {
 		return
 	}
@@ -93,23 +89,12 @@ func Load(conf *Conf) (err error) {
 	return
 }
 
-func loadKeyringAt(rootPath string) (KeySource, error) {
-	pubpath := filepath.Join(rootPath, pubring)
-	secpath := filepath.Join(rootPath, secring)
-	publicEntities, err := loadKeyringFile(pubpath)
-	if err != nil {
-		return nil, err
+func loadKeySourceAt(rootPath string) (*keyStore, error) {
+	s := &keyStore{
+		rootPath: rootPath,
 	}
 
-	secretEntities, err := loadKeyringFile(secpath)
-	if err != nil {
-		return nil, err
-	}
-
-	return &keyStore{
-		publicKeys: publicEntities,
-		secretKeys: secretEntities,
-	}, nil
+	return s, s.load()
 }
 
 func initNymsDir(dir string) {
@@ -130,105 +115,8 @@ func GetKeySource() KeySource {
 	}}
 }
 
-// GetPublicKey returns the best public key for the e-mail address
-// specified or nil if no key is available
-func (store *keyStore) GetPublicKey(address string) (*openpgp.Entity, error) {
-	el := store.lookupPublicKey(address)
-	if len(el) > 0 {
-		return el[0], nil
-	}
-	return nil, errors.New("PublicKey Not found")
-}
-
-// GetAllPublicKeys returns all the public key for the e-mail address
-// specified or nil if no key is available
-func (store *keyStore) GetAllPublicKeys(address string) (openpgp.EntityList, error) {
-	return store.lookupPublicKey(address), nil
-}
-
-// GetPublicKeyById returns the public keys with keyid
-func (store *keyStore) GetPublicKeyById(keyid uint64) *openpgp.Entity {
-	ks := store.publicKeys.KeysById(keyid)
-	if len(ks) > 0 {
-		return ks[0].Entity
-	}
-	return nil
-}
-
-// GetPublicKeyRing returns a list of all known public keys
-func (store *keyStore) GetPublicKeyRing() openpgp.EntityList {
-	return store.publicKeys
-}
-
-// GetSecretKey returns the best secret key for the e-mail address
-// specified or nil if no key is available
-func (store *keyStore) GetSecretKey(address string) (*openpgp.Entity, error) {
-	el := store.lookupSecretKey(address)
-	if len(el) > 0 {
-		return el[0], nil
-	}
-	return nil, errors.New("SecretKey Not found")
-}
-
-// GetAllSecretKeys returns all the secret key for the e-mail address
-// specified or nil if no key is available
-func (store *keyStore) GetAllSecretKeys(address string) (openpgp.EntityList, error) {
-	return store.lookupSecretKey(address), nil
-}
-
-// GetSecretKeyById returns the secret keys with keyid
-func (store *keyStore) GetSecretKeyById(keyid uint64) *openpgp.Entity {
-	ks := store.secretKeys.KeysById(keyid)
-	if len(ks) > 0 {
-		return ks[0].Entity
-	}
-	return nil
-}
-
-// GetSecretKeyRing returns a list of all known private keys
-func (store *keyStore) GetSecretKeyRing() openpgp.EntityList {
-	return store.secretKeys
-}
-
-// ForgetSecretKey forgets a secretkey by removing it from the secretKeys EntityList
-func (store *keyStore) ForgetSecretKey(entity *openpgp.Entity) error {
-	for i := range store.secretKeys {
-		if store.secretKeys[i] == entity {
-			store.secretKeys = append(store.secretKeys[:i], store.secretKeys[i+1:]...)
-			return nil
-		}
-	}
-	return errors.New("secretkey to be forgotten not found")
-}
-
-func (store *keyStore) lookupPublicKey(email string) openpgp.EntityList {
-	return lookupByEmail(email, store.publicKeys)
-}
-
-func (store *keyStore) lookupSecretKey(email string) openpgp.EntityList {
-	return lookupByEmail(email, store.secretKeys)
-}
-
-func lookupByEmail(email string, keys openpgp.EntityList) openpgp.EntityList {
-	result := []*openpgp.Entity{}
-	if keys == nil {
-		return result
-	}
-	for _, e := range keys {
-		if entityMatchesEmail(email, e) {
-			result = append(result, e)
-		}
-	}
-	return result
-}
-
-func entityMatchesEmail(email string, e *openpgp.Entity) bool {
-	for _, v := range e.Identities {
-		if v.UserId.Email == email {
-			return true
-		}
-	}
-	return false
+func GetKeyManager() KeyManager {
+	return internalKeys
 }
 
 func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.Entity, error) {
@@ -266,43 +154,15 @@ func generateNewKey(name, comment, email string, config *packet.Config, passphra
 	if err != nil {
 		return nil, err
 	}
+
+	//XXX Why dont we check if the passphrase was provided?
 	err = e.PrivateKey.Encrypt(passphrase)
 	if err != nil {
 		return nil, err
 	}
-	addSecretKey(e)
+
+	internalKeys.AddPrivate(e)
 	return e, nil
-}
-
-func addSecretKey(e *openpgp.Entity) error {
-	return serializeKey(e, secring, func(w io.Writer) error {
-		return e.SerializePrivate(w, nil)
-	})
-}
-
-func AddPublicKey(e *openpgp.Entity) error {
-	return serializeKey(e, pubring, func(w io.Writer) error {
-		return e.Serialize(w)
-	})
-}
-
-func serializeKey(e *openpgp.Entity, fname string, writeKey func(io.Writer) error) error {
-	lock := &sync.Mutex{}
-	lock.Lock()
-	defer lock.Unlock()
-
-	path := filepath.Join(currentConf.NymsConfDir, fname)
-	flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
-
-	f, err := os.OpenFile(path, flags, 0666)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if err := writeKey(f); err != nil {
-		return err
-	}
-	return nil
 }
 
 func nymsPath(fname string) string {
