@@ -58,7 +58,12 @@ func PublishToKeyserver(longKeyID, serverAddress string) error {
 		return err
 	}
 
-	return ks.Submit(key)
+	keytext, err := keymgr.ArmorPublicKey(key)
+	if err != nil {
+		return err
+	}
+
+	return ks.Submit(keytext)
 }
 
 func GetEntityByEmail(email string) (*openpgp.Entity, error) {

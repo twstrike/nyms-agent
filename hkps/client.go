@@ -2,7 +2,6 @@ package hkps
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -14,13 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/packet"
 )
 
 type Client interface {
-	Submit(*openpgp.Entity) error
+	Submit(string) error
 	Lookup(string) ([]*Index, error)
 }
 
@@ -58,31 +55,9 @@ func (c *client) path(p string) string {
 	return c.base.ResolveReference(ref).String()
 }
 
-func armoredKeyring(e *openpgp.Entity) (string, error) {
-	dst := &bytes.Buffer{}
-	// XXX Should we add a version header?
-	armoredDst, err := armor.Encode(dst, openpgp.PublicKeyType, nil)
-	if err != nil {
-		return "", err
-	}
-	defer armoredDst.Close()
-
-	err = e.Serialize(armoredDst)
-	if err != nil {
-		return "", err
-	}
-
-	return dst.String(), nil
-}
-
-func (c *client) Submit(k *openpgp.Entity) error {
-	kr, err := armoredKeyring(k)
-	if err != nil {
-		return err
-	}
-
+func (c *client) Submit(keytext string) error {
 	data := url.Values{}
-	data.Set("keytext", kr)
+	data.Set("keytext", keytext)
 
 	resp, err := http.PostForm(c.path("/pks/add"), data)
 	if err != nil {

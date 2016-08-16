@@ -241,7 +241,7 @@ func ArmorSecretKey(e *openpgp.Entity) (string, error) {
 
 func exportArmoredKey(e *openpgp.Entity, header string, writeKey func(io.Writer) error) (string, error) {
 	b := &bytes.Buffer{}
-	w, err := armor.Encode(b, header, map[string]string{})
+	w, err := armor.Encode(b, header, nil)
 	if err != nil {
 		return "", err
 	}
