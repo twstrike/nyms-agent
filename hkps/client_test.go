@@ -2,6 +2,7 @@ package hkps
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -208,5 +209,61 @@ func TestParseUserID(t *testing.T) {
 
 	if !userID.Revoked {
 		t.Errorf("unexpected Revoked: %t", userID.Revoked)
+	}
+}
+
+func TestHKPSGet(t *testing.T) {
+	longKeyID := "0x97372B211CADF401"
+	expectedKeyRing := "SOME KEY RING"
+
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/pks/lookup" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+
+		if r.Method != "GET" {
+			t.Errorf("unexpected method: %s", r.Method)
+		}
+
+		err := r.ParseForm()
+		if err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+
+		op := r.Form.Get("op")
+		if op != "get" {
+			t.Errorf("unexpected op: %s", op)
+		}
+
+		options := r.Form.Get("options")
+		if options != "mr" {
+			t.Errorf("unexpected options: %s", options)
+		}
+
+		search := r.Form.Get("search")
+		if search != longKeyID {
+			t.Errorf("unexpected search: %s", search)
+		}
+
+		w.Write([]byte(expectedKeyRing))
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(fn))
+
+	c, err := NewClient(s.URL)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	keyring, err := c.Get(longKeyID)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	b := &bytes.Buffer{}
+	io.Copy(b, keyring)
+
+	if b.String() != expectedKeyRing {
+		t.Errorf("unexpected response: %q", keyring)
 	}
 }

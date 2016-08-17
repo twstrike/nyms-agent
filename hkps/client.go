@@ -19,6 +19,7 @@ import (
 type Client interface {
 	Submit(string) error
 	Lookup(string) ([]*Index, error)
+	Get(string) (io.ReadCloser, error)
 }
 
 func translateProtocol(u *url.URL) *url.URL {
@@ -250,4 +251,22 @@ func (c *client) Lookup(search string) ([]*Index, error) {
 	}
 
 	return parseIndexes(resp.Body)
+}
+
+func (c *client) Get(search string) (io.ReadCloser, error) {
+	p := url.Values{}
+	p.Set("op", "get")
+	p.Set("options", "mr")
+	p.Set("search", search)
+
+	resp, err := http.Get(c.path("/pks/lookup?" + p.Encode()))
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("hkps: unexpected response from server (%s)", resp.Status)
+	}
+
+	return resp.Body, nil
 }
