@@ -90,6 +90,7 @@ func TestKeyManager(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
+	// XXX maybe SelfSign should only be used for a new Entity
 	e.SelfSign(nil)
 	err = manager.AddPublic(e)
 	if err != nil {
