@@ -14,6 +14,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -426,7 +427,8 @@ func (pk *PrivateKey) parsePrivateKey(data []byte) (err error) {
 	case PubKeyAlgoECDSA:
 		return pk.parseECDSAPrivateKey(data)
 	}
-	panic("impossible")
+
+	return errors.UnsupportedError(fmt.Sprintf("unsupported public key algo %d", pk.PublicKey.PubKeyAlgo))
 }
 
 func (pk *PrivateKey) parseRSAPrivateKey(data []byte) (err error) {

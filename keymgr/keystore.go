@@ -25,6 +25,7 @@ func (store *keyStore) GetPublicKey(address string) (*openpgp.Entity, error) {
 	if len(el) > 0 {
 		return el[0], nil
 	}
+
 	return nil, errors.New("PublicKey Not found")
 }
 
