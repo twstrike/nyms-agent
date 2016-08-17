@@ -2,7 +2,6 @@ package keymgr
 
 import (
 	"encoding/hex"
-	"io/ioutil"
 	"os"
 
 	"golang.org/x/crypto/openpgp"
@@ -91,7 +90,7 @@ func TestKeyManager(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
-	e.SerializePrivate(ioutil.Discard, nil)
+	e.SelfSign(nil)
 	err = manager.AddPublic(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)
