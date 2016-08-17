@@ -158,7 +158,8 @@ func TestKeyManagerRemove(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
-	e.SerializePrivate(ioutil.Discard, nil)
+	// XXX maybe SelfSign should only be used for a new Entity
+	e.SelfSign(nil)
 	err = manager.AddPublic(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)
