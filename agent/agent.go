@@ -15,7 +15,7 @@ import (
 )
 
 func GetPublicKeyRing() openpgp.EntityList {
-	return keymgr.GetKeySource().GetPublicKeyRing()
+	return keymgr.GetKeyLocker().GetPublicKeyRing()
 }
 
 func GetSecretKeyRing() openpgp.EntityList {
@@ -59,7 +59,7 @@ func GetEntityByEmail(email string) (*openpgp.Entity, error) {
 		return k, err
 	}
 
-	return keymgr.GetKeySource().GetPublicKey(email)
+	return keymgr.GetKeyLocker().GetPublicKey(email)
 }
 
 func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
@@ -72,7 +72,7 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 		return k, nil
 	}
 
-	return keymgr.GetKeySource().GetPublicKeyById(id), nil
+	return keymgr.GetKeyLocker().GetPublicKeyById(id), nil
 }
 
 type IncomingMail struct {
@@ -96,7 +96,7 @@ func ProcessIncomingMail(body string, passphrase []byte) (*IncomingMail, error) 
 	}
 
 	if isSigned(m) {
-		ret.VerifyStatus = m.Verify(keymgr.GetKeySource())
+		ret.VerifyStatus = m.Verify(keymgr.GetKeyLocker())
 	}
 
 	return ret, nil
@@ -122,7 +122,7 @@ func ProcessOutgoingMail(body string, sign, encrypt bool, passphrase string) (*p
 		return m.EncryptAndSign(keymgr.GetKeyLocker(), passphrase), nil
 	}
 
-	return m.Encrypt(keymgr.GetKeySource()), nil
+	return m.Encrypt(keymgr.GetKeyLocker()), nil
 }
 
 //XXX This is long key ID

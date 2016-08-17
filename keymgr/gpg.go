@@ -20,19 +20,18 @@ func loadKeyringFile(path string) (openpgp.EntityList, error) {
 	return el, nil
 }
 
-func encryptPrivateKey(e *openpgp.Entity, passphrase []byte) (bool, error) {
+func encryptPrivateKey(e *openpgp.Entity, passphrase []byte) error {
 	if e.PrivateKey == nil {
-		return false, errors.New("no private key")
+		return errors.New("no private key")
 	}
-	if e.PrivateKey.Encrypted {
-		return true, nil
+	if !e.PrivateKey.Encrypted {
+		err := e.PrivateKey.Encrypt(passphrase)
+		if err != nil {
+			return err
+		}
 	}
 
-	err := e.PrivateKey.Encrypt(passphrase)
-	if err == nil {
-		err = encryptSubkeys(e, passphrase)
-	}
-	return (err == nil), nil
+	return encryptSubkeys(e, passphrase)
 }
 
 func encryptSubkeys(e *openpgp.Entity, passphrase []byte) error {

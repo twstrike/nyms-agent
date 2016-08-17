@@ -106,7 +106,6 @@ func (l *keyLocker) forgetSecretKey(n int, entity *openpgp.Entity) {
 			return
 		}
 	}
-	logger.Error("secretkey to be forgotten not found")
 }
 
 func decryptSubkeys(e *openpgp.Entity, passphrase []byte) error {

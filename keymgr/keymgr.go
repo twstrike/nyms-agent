@@ -83,7 +83,9 @@ func Load(conf *Conf) (err error) {
 		return
 	}
 
-	locker.KeySource = GetKeySource()
+	locker.KeySource = &combinedKeySource{[]KeySource{
+		internalKeys, defaultKeys,
+	}}
 
 	currentConf = conf
 	return
@@ -107,12 +109,6 @@ func initNymsDir(dir string) {
 	if err := os.MkdirAll(dir, 0711); err != nil {
 		logger.Fatalf("Error creating nyms directory (%s): %v", dir, err)
 	}
-}
-
-func GetKeySource() KeySource {
-	return &combinedKeySource{[]KeySource{
-		internalKeys, defaultKeys,
-	}}
 }
 
 func GetKeyManager() KeyManager {
@@ -156,10 +152,7 @@ func generateNewKey(name, comment, email string, config *packet.Config, passphra
 	}
 
 	if passphrase != nil && len(passphrase) != 0 {
-		err = e.PrivateKey.Encrypt(passphrase)
-		if err != nil {
-			return nil, err
-		}
+		encryptPrivateKey(e, passphrase)
 	}
 
 	internalKeys.AddPrivate(e)
