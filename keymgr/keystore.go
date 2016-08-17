@@ -1,6 +1,7 @@
 package keymgr
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -77,15 +78,36 @@ func (store *keyStore) GetSecretKeyRing() openpgp.EntityList {
 	return store.secretKeys
 }
 
-// ForgetSecretKey forgets a secretkey by removing it from the secretKeys EntityList
-func (store *keyStore) ForgetSecretKey(entity *openpgp.Entity) error {
-	for i := range store.secretKeys {
-		if store.secretKeys[i] == entity {
-			store.secretKeys = append(store.secretKeys[:i], store.secretKeys[i+1:]...)
-			return nil
+func removeEntity(from openpgp.EntityList, e *openpgp.Entity) (openpgp.EntityList, bool) {
+	for i := range from {
+		if bytes.Equal(from[i].PrimaryKey.Fingerprint[:], e.PrimaryKey.Fingerprint[:]) {
+			return append(from[:i], from[i+1:]...), true
 		}
 	}
-	return errors.New("secretkey to be forgotten not found")
+
+	return from, false
+}
+
+// ForgetSecretKey forgets a secretkey by removing it from the secretKeys EntityList
+func (store *keyStore) ForgetPrivateKey(entity *openpgp.Entity) error {
+	var ok bool
+	store.secretKeys, ok = removeEntity(store.secretKeys, entity)
+	if !ok {
+		return errors.New("secretkey to be forgotten not found")
+	}
+
+	return nil
+}
+
+// ForgetPublicKey forgets a publickey by removing it from the publicKeys EntityList
+func (store *keyStore) ForgetPublicKey(entity *openpgp.Entity) error {
+	var ok bool
+	store.publicKeys, ok = removeEntity(store.publicKeys, entity)
+	if !ok {
+		return errors.New("publickey to be forgotten not found")
+	}
+
+	return nil
 }
 
 func (store *keyStore) lookupPublicKey(email string) openpgp.EntityList {
@@ -97,7 +119,7 @@ func (store *keyStore) lookupSecretKey(email string) openpgp.EntityList {
 }
 
 func lookupByEmail(email string, keys openpgp.EntityList) openpgp.EntityList {
-	result := []*openpgp.Entity{}
+	result := openpgp.EntityList{}
 	if keys == nil {
 		return result
 	}
@@ -118,11 +140,10 @@ func entityMatchesEmail(email string, e *openpgp.Entity) bool {
 	return false
 }
 
-//XXX WHen whould we name things secret or private?
 func (store *keyStore) AddPrivate(e *openpgp.Entity) error {
 	defer store.load()
 
-	err := store.addSecretKey(e)
+	err := store.addPrivateKey(e)
 	if err != nil {
 		return err
 	}
@@ -136,9 +157,81 @@ func (store *keyStore) AddPublic(e *openpgp.Entity) error {
 	return store.addPublicKey(e)
 }
 
+func (store *keyStore) RemovePrivate(e *openpgp.Entity) error {
+	defer store.load()
+
+	err := store.forgetPrivateAndSerialize(e)
+	if err != nil {
+		return err
+	}
+
+	//XXX Is it really a good idea to remove both public and private keys when
+	//asked to remove private?
+	return store.RemovePublic(e)
+}
+
+func (store *keyStore) forgetPublicAndSerialize(e *openpgp.Entity) error {
+	err := store.ForgetPublicKey(e)
+	if err != nil {
+		return err
+	}
+
+	path := filepath.Join(store.rootPath, pubring)
+	return serializeAndOverwrite(path, func(w io.Writer) error {
+		for _, e := range store.publicKeys {
+			err := e.Serialize(w)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (store *keyStore) forgetPrivateAndSerialize(e *openpgp.Entity) error {
+	err := store.ForgetPrivateKey(e)
+	if err != nil {
+		return err
+	}
+
+	path := filepath.Join(store.rootPath, secring)
+	return serializeAndOverwrite(path, func(w io.Writer) error {
+		for _, e := range store.secretKeys {
+			err := e.SerializePrivate(w, nil)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (store *keyStore) RemovePublic(e *openpgp.Entity) error {
+	defer store.load()
+
+	return store.forgetPublicAndSerialize(e)
+}
+
 func (store *keyStore) load() (err error) {
 	store.secretKeys, store.publicKeys, err = loadKeyringAt(store.rootPath)
 	return err
+}
+
+func serializeAndOverwrite(path string, writeKey func(io.Writer) error) error {
+	lock := &sync.Mutex{}
+	lock.Lock()
+	defer lock.Unlock()
+
+	flags := os.O_WRONLY | os.O_TRUNC | os.O_CREATE
+	f, err := os.OpenFile(path, flags, 0666)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return writeKey(f)
 }
 
 const (
@@ -162,7 +255,7 @@ func loadKeyringAt(rootPath string) (openpgp.EntityList, openpgp.EntityList, err
 	return secretEntities, publicEntities, nil
 }
 
-func (store *keyStore) addSecretKey(e *openpgp.Entity) error {
+func (store *keyStore) addPrivateKey(e *openpgp.Entity) error {
 	path := filepath.Join(store.rootPath, secring)
 	return serializeKey(e, path, func(w io.Writer) error {
 		return e.SerializePrivate(w, nil)

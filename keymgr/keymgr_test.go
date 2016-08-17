@@ -45,7 +45,7 @@ func TestForget(t *testing.T) {
 	if e == nil {
 		t.Errorf("error looking up key %s", err)
 	}
-	err = internalKeys.ForgetSecretKey(e)
+	err = internalKeys.ForgetPrivateKey(e)
 	if err != nil {
 		t.Errorf("error forget key pointer %p", e)
 		t.Errorf("error forget key %v", err)
@@ -110,5 +110,72 @@ func TestKeyManager(t *testing.T) {
 	_, err = manager.GetPublicKey("public@nyms.io")
 	if err != nil {
 		t.Errorf("entity should exist: %s", err)
+	}
+}
+
+func TestKeyManagerRemove(t *testing.T) {
+	os.Remove("../testdata/tmp/pubring.gpg")
+	os.Remove("../testdata/tmp/secring.gpg")
+	manager, _ := loadKeySourceAt("../testdata/tmp")
+
+	e, err := openpgp.NewEntity("name", "comment", "secret@nyms.io", nil)
+	if err != nil {
+		t.Errorf("error creating entity: %s", err)
+	}
+
+	err = manager.AddPrivate(e)
+	if err != nil {
+		t.Errorf("error adding entity: %s", err)
+	}
+
+	e, err = manager.GetSecretKey("secret@nyms.io")
+	if err != nil {
+		t.Errorf("entity should exist: %s", err)
+	}
+
+	_, err = manager.GetPublicKey("secret@nyms.io")
+	if err != nil {
+		t.Errorf("entity should exist: %s", err)
+	}
+
+	err = manager.RemovePrivate(e)
+	if err != nil {
+		t.Errorf("error removing entity: %s", err)
+	}
+
+	e, err = manager.GetSecretKey("secret@nyms.io")
+	if err == nil {
+		t.Errorf("entity exists: %s", e)
+	}
+
+	e, err = manager.GetPublicKey("secret@nyms.io")
+	if err == nil {
+		t.Errorf("entity exists: %s", e)
+	}
+
+	e, err = openpgp.NewEntity("name", "comment", "public@nyms.io", nil)
+	if err != nil {
+		t.Errorf("error creating entity: %s", err)
+	}
+
+	e.SerializePrivate(ioutil.Discard, nil)
+	err = manager.AddPublic(e)
+	if err != nil {
+		t.Errorf("error adding entity: %s", err)
+	}
+
+	_, err = manager.GetPublicKey("public@nyms.io")
+	if err != nil {
+		t.Errorf("entity should exist: %s", err)
+	}
+
+	err = manager.RemovePublic(e)
+	if err != nil {
+		t.Errorf("error removing entity: %s", err)
+	}
+
+	e, err = manager.GetPublicKey("public@nyms.io")
+	if err == nil {
+		t.Errorf("entity exists: %s", e)
 	}
 }
