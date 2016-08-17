@@ -215,6 +215,11 @@ func (store *keyStore) RemovePublic(e *openpgp.Entity) error {
 	return store.forgetPublicAndSerialize(e)
 }
 
+const (
+	pubring = "pubring.gpg"
+	secring = "secring.gpg"
+)
+
 func (store *keyStore) load() (err error) {
 	store.secretKeys, store.publicKeys, err = loadKeyringAt(store.rootPath)
 	return err
@@ -234,11 +239,6 @@ func serializeAndOverwrite(path string, writeKey func(io.Writer) error) error {
 
 	return writeKey(f)
 }
-
-const (
-	pubring = "pubring.gpg"
-	secring = "secring.gpg"
-)
 
 func loadKeyringAt(rootPath string) (openpgp.EntityList, openpgp.EntityList, error) {
 	pubpath := filepath.Join(rootPath, pubring)
