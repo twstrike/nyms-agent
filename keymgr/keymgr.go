@@ -82,7 +82,8 @@ func Load(conf *Conf) (err error) {
 	if err != nil {
 		return
 	}
-	locker.KeySource = internalKeys
+
+	locker.KeySource = GetKeySource()
 
 	currentConf = conf
 	return
@@ -154,10 +155,11 @@ func generateNewKey(name, comment, email string, config *packet.Config, passphra
 		return nil, err
 	}
 
-	//XXX Why dont we check if the passphrase was provided?
-	err = e.PrivateKey.Encrypt(passphrase)
-	if err != nil {
-		return nil, err
+	if passphrase != nil && len(passphrase) != 0 {
+		err = e.PrivateKey.Encrypt(passphrase)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	internalKeys.AddPrivate(e)

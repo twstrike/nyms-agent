@@ -15,39 +15,18 @@ import (
 )
 
 func GetPublicKeyRing() openpgp.EntityList {
-	keymgr.Load(nil)
 	return keymgr.GetKeySource().GetPublicKeyRing()
 }
 
 func GetSecretKeyRing() openpgp.EntityList {
-	keymgr.Load(nil)
-	return keymgr.GetKeySource().GetSecretKeyRing()
+	return keymgr.GetKeyLocker().GetSecretKeyRing()
 }
 
 func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.Entity, error) {
 	return keymgr.GenerateNewKey(name, comment, email, passphrase)
 }
 
-// func Encrypt(keyID string, data []byte) error {
-// 	id, err := decodeKeyId(keyID)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	k := keymgr.GetKeyLocker().GetSecretKeyById(id)
-// 	if k == nil {
-// 		errors.New("not found")
-// 	}
-// 	if k.Encrypted {
-// 		errors.New("encrypted")
-// 	}
-// 	k.SymmetricEncrypt(data)
-//
-// 	return nil
-// }
-
 func UnlockPrivateKey(keyID string, passphrase []byte) error {
-	keymgr.Load(nil)
 	id, err := decodeKeyId(keyID)
 	if err != nil {
 		return err
@@ -76,7 +55,7 @@ func PublishToKeyserver(longKeyID, serverAddress string) error {
 }
 
 func GetEntityByEmail(email string) (*openpgp.Entity, error) {
-	if k, err := keymgr.GetKeySource().GetSecretKey(email); k != nil {
+	if k, err := keymgr.GetKeyLocker().GetSecretKey(email); k != nil {
 		return k, err
 	}
 
@@ -89,7 +68,7 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 		return nil, fmt.Errorf("Error decoding received key id: ", err)
 	}
 
-	if k := keymgr.GetKeySource().GetSecretKeyById(id); k != nil {
+	if k := keymgr.GetKeyLocker().GetSecretKeyById(id); k != nil {
 		return k, nil
 	}
 
@@ -113,7 +92,7 @@ func ProcessIncomingMail(body string, passphrase []byte) (*IncomingMail, error) 
 	}
 
 	if isEncrypted(m) {
-		ret.DecryptionStatus = m.DecryptWith(keymgr.GetKeySource(), passphrase)
+		ret.DecryptionStatus = m.DecryptWith(keymgr.GetKeyLocker(), passphrase)
 	}
 
 	if isSigned(m) {
@@ -136,11 +115,11 @@ func ProcessOutgoingMail(body string, sign, encrypt bool, passphrase string) (*p
 	}
 
 	if !encrypt {
-		return m.Sign(keymgr.GetKeySource(), passphrase), nil
+		return m.Sign(keymgr.GetKeyLocker(), passphrase), nil
 	}
 
 	if sign {
-		return m.EncryptAndSign(keymgr.GetKeySource(), passphrase), nil
+		return m.EncryptAndSign(keymgr.GetKeyLocker(), passphrase), nil
 	}
 
 	return m.Encrypt(keymgr.GetKeySource()), nil
