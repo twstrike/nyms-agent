@@ -528,7 +528,7 @@ func NewEntity(name, comment, email string, config *packet.Config) (*Entity, err
 // SerializePrivateWithoutSign serializes an Entity, including private key material, to
 // the given Writer. For now, it should be called after SelfSign or a Deserialized Entity.
 // If config is nil, sensible defaults will be used.
-func (e *Entity) SerializePrivateWithoutSign(w io.Writer, config *packet.Config) (err error) {
+func (e *Entity) SerializePrivateWithoutSign(w io.Writer) (err error) {
 	err = e.PrivateKey.Serialize(w)
 	if err != nil {
 		return
@@ -576,7 +576,7 @@ func (e *Entity) SerializePrivate(w io.Writer, config *packet.Config) (err error
 	if err != nil {
 		return
 	}
-	err = e.SerializePrivateWithoutSign(w, config)
+	err = e.SerializePrivateWithoutSign(w)
 	if err != nil {
 		return
 	}

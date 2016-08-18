@@ -63,7 +63,7 @@ func (l *keyLocker) GetSecretKeyById(keyID uint64) *openpgp.Entity {
 
 func copyEntity(src *openpgp.Entity) (*openpgp.Entity, error) {
 	buf := bytes.NewBuffer(nil)
-	err := src.SerializePrivateWithoutSign(buf, nil)
+	err := src.SerializePrivateWithoutSign(buf)
 	if err != nil {
 		return nil, err
 	}
