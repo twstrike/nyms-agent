@@ -32,8 +32,7 @@ func (l *keyLocker) UnlockSecretKeyById(keyID uint64, passphrase []byte) (err er
 			err = errors.New("secretkey to be unlocked not found")
 			return
 		}
-		k = new(openpgp.Entity)
-		err = copyEntity(k, src)
+		k, err = copyEntity(src)
 		if err != nil {
 			return
 		}
@@ -62,39 +61,17 @@ func (l *keyLocker) GetSecretKeyById(keyID uint64) *openpgp.Entity {
 	}
 }
 
-func copyEntity(dst, src *openpgp.Entity) error {
-	dst.PrimaryKey = src.PrimaryKey
-	dst.Identities = src.Identities
-	dst.Revocations = src.Revocations
-
+func copyEntity(src *openpgp.Entity) (*openpgp.Entity, error) {
 	buf := bytes.NewBuffer(nil)
-	err := src.PrivateKey.Serialize(buf)
+	err := src.SerializePrivateWithoutSign(buf, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	privateKey, err := packet.Read(buf)
+	dst, err := openpgp.ReadEntity(packet.NewReader(buf))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	dst.PrivateKey = privateKey.(*packet.PrivateKey)
-
-	for _, sub := range src.Subkeys {
-		buf = bytes.NewBuffer(nil)
-		err = sub.PrivateKey.Serialize(buf)
-		if err != nil {
-			return err
-		}
-		subKey, err := packet.Read(buf)
-		if err != nil {
-			return err
-		}
-		dst.Subkeys = append(dst.Subkeys, openpgp.Subkey{
-			PrivateKey: subKey.(*packet.PrivateKey),
-			PublicKey:  sub.PublicKey,
-			Sig:        sub.Sig,
-		})
-	}
-	return nil
+	return dst, nil
 }
 
 // forgetSecretKey forgets a secretkey by removing it from the secretKeys EntityList
