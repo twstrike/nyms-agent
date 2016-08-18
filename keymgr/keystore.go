@@ -144,12 +144,15 @@ func entityMatchesEmail(email string, e *openpgp.Entity) bool {
 func (store *keyStore) AddPrivate(e *openpgp.Entity) error {
 	defer store.load()
 
-	err := store.addPrivateKey(e)
+	//TODO use default config when we have a configuration file
+	//XXX this is a lazy sign
+	e.SelfSign(nil)
+	err := store.addPublicKey(e)
 	if err != nil {
 		return err
 	}
 
-	return store.addPublicKey(e)
+	return store.addPrivateKey(e)
 }
 
 func (store *keyStore) AddPublic(e *openpgp.Entity) error {
@@ -259,7 +262,7 @@ func loadKeyringAt(rootPath string) (openpgp.EntityList, openpgp.EntityList, err
 func (store *keyStore) addPrivateKey(e *openpgp.Entity) error {
 	path := filepath.Join(store.rootPath, secring)
 	return serializeKey(e, path, func(w io.Writer) error {
-		return e.SerializePrivate(w, nil)
+		return e.SerializePrivateWithoutSign(w)
 	})
 }
 
