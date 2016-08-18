@@ -1,12 +1,6 @@
 package pipes
 
-import (
-	"io"
-	"net/rpc"
-	"net/rpc/jsonrpc"
-
-	"github.com/twstrike/nyms-agent/protocol"
-)
+import "io"
 
 type pipePair struct {
 	input  io.ReadCloser
@@ -31,18 +25,6 @@ func (pp pipePair) Close() (e error) {
 	}
 
 	return e
-}
-
-func Serve(conn io.ReadWriteCloser) {
-	defer conn.Close()
-	protocol := new(protocol.Protocol)
-	rpc.Register(protocol)
-	codec := jsonrpc.NewServerCodec(conn)
-	rpc.ServeCodec(codec)
-}
-
-func NewClient(conn io.ReadWriteCloser) *rpc.Client {
-	return jsonrpc.NewClient(conn)
 }
 
 func CreatePipePair(r io.ReadCloser, w io.WriteCloser) io.ReadWriteCloser {

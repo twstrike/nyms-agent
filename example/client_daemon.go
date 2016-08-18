@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/rpc"
 
-	"github.com/twstrike/nyms-agent/pipes"
 	"github.com/twstrike/nyms-agent/protocol"
 )
 
@@ -18,7 +17,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := pipes.NewClient(conn)
+	c := protocol.NewClient(conn)
 
 	getVersion(c)
 	getPublicKeyRing(c)

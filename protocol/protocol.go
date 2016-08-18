@@ -3,6 +3,9 @@ package protocol
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/rpc"
+	"net/rpc/jsonrpc"
 
 	"golang.org/x/crypto/openpgp"
 
@@ -11,6 +14,18 @@ import (
 	"github.com/twstrike/nyms-agent/hkps"
 	"github.com/twstrike/pgpmail"
 )
+
+func Serve(conn io.ReadWriteCloser) {
+	defer conn.Close()
+	protocol := new(Protocol)
+	rpc.Register(protocol)
+	codec := jsonrpc.NewServerCodec(conn)
+	rpc.ServeCodec(codec)
+}
+
+func NewClient(conn io.ReadWriteCloser) *rpc.Client {
+	return jsonrpc.NewClient(conn)
+}
 
 var logger = gl.MustGetLogger("nymsd")
 

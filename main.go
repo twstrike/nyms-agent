@@ -9,6 +9,7 @@ import (
 
 	"github.com/twstrike/nyms-agent/keymgr"
 	"github.com/twstrike/nyms-agent/pipes"
+	"github.com/twstrike/nyms-agent/protocol"
 )
 
 var pipe bool
@@ -39,7 +40,7 @@ func main() {
 		defer pp.Close()
 		log.Println("Listening on Stdin ...")
 		for {
-			go pipes.Serve(pp)
+			go protocol.Serve(pp)
 		}
 	case daemonEnabled:
 		log.Println("Listening on /tmp/nyms.sock ...")
@@ -56,7 +57,7 @@ func main() {
 				log.Fatal(err)
 				continue
 			}
-			go pipes.Serve(conn)
+			go protocol.Serve(conn)
 		}
 	default:
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
