@@ -282,8 +282,6 @@ func serializeKey(e *openpgp.Entity, path string, writeKey func(io.Writer) error
 		return err
 	}
 	defer f.Close()
-	if err := writeKey(f); err != nil {
-		return err
-	}
-	return nil
+
+	return writeKey(f)
 }
