@@ -184,3 +184,30 @@ func KeyserverLookup(serverAddress, search string) ([]*hkps.Index, error) {
 
 	return ks.Lookup(search)
 }
+
+//GetPublicKeyFromKeyServer
+func KeyserverGet(serverAddress, search string) error {
+	ks, err := hkps.NewClient(serverAddress)
+	if err != nil {
+		return err
+	}
+
+	r, err := ks.Get(search)
+	if err != nil {
+		return err
+	}
+
+	el, err := openpgp.ReadKeyRing(r)
+	if err != nil {
+		return err
+	}
+
+	for _, e := range el {
+		err := keymgr.GetKeyManager().AddPublic(e)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

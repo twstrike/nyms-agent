@@ -264,3 +264,15 @@ func (*Protocol) KeyserverLookup(args types.KeyServerSearchArgs, result *types.K
 	result.Indexes, err = agent.KeyserverLookup(args.KeyServer, args.Search)
 	return err
 }
+
+func (*Protocol) KeyserverGet(args types.KeyServerSearchArgs, result *bool) error {
+	logger.Info("Processing.KeyserverGet")
+
+	err := agent.KeyserverGet(args.KeyServer, args.Search)
+	if err != nil {
+		return err
+	}
+
+	*result = true
+	return nil
+}
