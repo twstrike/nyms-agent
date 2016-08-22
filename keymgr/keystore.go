@@ -141,12 +141,11 @@ func entityMatchesEmail(email string, e *openpgp.Entity) bool {
 	return false
 }
 
+//The entitie's Itentities must be self-signed and the subkeys must have a
+//direct key signature.
 func (store *keyStore) AddPrivate(e *openpgp.Entity) error {
 	defer store.load()
 
-	//TODO use default config when we have a configuration file
-	//XXX this is a lazy sign
-	e.SelfSign(nil)
 	err := store.addPublicKey(e)
 	if err != nil {
 		return err

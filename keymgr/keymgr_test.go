@@ -80,6 +80,8 @@ func TestKeyManager(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
+	e.SelfSignIdentities(nil)
+	e.DirectSignSubkeys(nil)
 	err = manager.AddPrivate(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)
@@ -90,8 +92,10 @@ func TestKeyManager(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
-	// XXX maybe SelfSign should only be used for a new Entity
-	e.SelfSign(nil)
+	//XXX Why serializing fails if this is missing?
+	e.SelfSignIdentities(nil)
+	e.DirectSignSubkeys(nil)
+
 	err = manager.AddPublic(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)
@@ -123,6 +127,8 @@ func TestKeyManagerRemove(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
+	e.SelfSignIdentities(nil)
+	e.DirectSignSubkeys(nil)
 	err = manager.AddPrivate(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)
@@ -158,8 +164,10 @@ func TestKeyManagerRemove(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
-	// XXX maybe SelfSign should only be used for a new Entity
-	e.SelfSign(nil)
+	//XXX Why serializing fails if this is missing?
+	e.SelfSignIdentities(nil)
+	e.DirectSignSubkeys(nil)
+
 	err = manager.AddPublic(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)

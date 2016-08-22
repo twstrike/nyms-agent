@@ -487,6 +487,7 @@ func NewEntity(name, comment, email string, config *packet.Config) (*Entity, err
 		PrivateKey: packet.NewRSAPrivateKey(currentTime, signingPriv),
 		Identities: make(map[string]*Identity),
 	}
+
 	isPrimaryId := true
 	e.Identities[uid.Id] = &Identity{
 		Name:   uid.Name,
@@ -550,20 +551,34 @@ func (e *Entity) SerializePrivateWithoutSign(w io.Writer) (err error) {
 	return nil
 }
 
-// SelfSign sign an Entity, on both Identities and Subkeys
-func (e *Entity) SelfSign(config *packet.Config) (err error) {
+// SelfSignIdentities creates a self-signature on every identity
+func (e *Entity) SelfSignIdentities(config *packet.Config) (err error) {
+	//gnupg does this as part of "do_generate_keypair"
+	//It "writes a direct key signature to the first key in" pub_root
+	//(write_direct_sig) using the primary private key.
+
 	for _, ident := range e.Identities {
 		err = ident.SelfSignature.SignUserId(ident.UserId.Id, e.PrimaryKey, e.PrivateKey, config)
 		if err != nil {
 			return
 		}
 	}
+
+	return nil
+}
+
+// DirectSignSubkeys creates a direct key signature on every subkey.
+func (e *Entity) DirectSignSubkeys(config *packet.Config) (err error) {
+	//gnupg does this as part of "do_generate_keypair"
+	//It "writes a self-signature to the first user id in" pub_root
+	//(write_selfsigs) using the primary private key.
 	for _, subkey := range e.Subkeys {
 		err = subkey.Sig.SignKey(subkey.PublicKey, e.PrivateKey, config)
 		if err != nil {
 			return
 		}
 	}
+
 	return nil
 }
 
@@ -572,10 +587,16 @@ func (e *Entity) SelfSign(config *packet.Config) (err error) {
 // NewEntity.
 // If config is nil, sensible defaults will be used.
 func (e *Entity) SerializePrivate(w io.Writer, config *packet.Config) (err error) {
-	err = e.SelfSign(config)
+	err = e.SelfSignIdentities(config)
 	if err != nil {
 		return
 	}
+
+	err = e.DirectSignSubkeys(config)
+	if err != nil {
+		return
+	}
+
 	err = e.SerializePrivateWithoutSign(w)
 	if err != nil {
 		return
