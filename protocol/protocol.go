@@ -11,7 +11,7 @@ import (
 
 	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/agent"
-	"github.com/twstrike/nyms-agent/hkps"
+	"github.com/twstrike/nyms-agent/protocol/types"
 	"github.com/twstrike/pgpmail"
 )
 
@@ -23,25 +23,20 @@ func Serve(conn io.ReadWriteCloser) {
 	rpc.ServeCodec(codec)
 }
 
-func NewClient(conn io.ReadWriteCloser) *rpc.Client {
-	return jsonrpc.NewClient(conn)
-}
-
 var logger = gl.MustGetLogger("nymsd")
 
 //XXX This should be only an adapter from jsonrcp - which requires a struct
 //with exported methods, etc, etc. - to the real implementation
 type Protocol int
-type VoidArg struct{}
 
-var void = &VoidArg{}
+var void = &types.VoidArg{}
 
 //
 // Protocol.Version
 //
 const protocolVersion = 1
 
-func (*Protocol) Version(_ VoidArg, result *int) error {
+func (*Protocol) Version(_ types.VoidArg, result *int) error {
 	logger.Info("Processing Version")
 	*result = protocolVersion
 	return nil
@@ -51,24 +46,20 @@ func (*Protocol) Version(_ VoidArg, result *int) error {
 // Protocol.GetKeyRing
 //
 
-type GetKeyRingResult struct {
-	Keys []GetKeyInfoResult
-}
-
-func (*Protocol) GetPublicKeyRing(_ VoidArg, result *GetKeyRingResult) error {
+func (*Protocol) GetPublicKeyRing(_ types.VoidArg, result *types.GetKeyRingResult) error {
 	logger.Info("Processing GetPublicKeyRing")
 	populateKeyRingResult(agent.GetPublicKeyRing(), result)
 	return nil
 }
 
-func (*Protocol) GetSecretKeyRing(_ VoidArg, result *GetKeyRingResult) error {
+func (*Protocol) GetSecretKeyRing(_ types.VoidArg, result *types.GetKeyRingResult) error {
 	logger.Info("Processing GetPublicKeyRing")
 	populateKeyRingResult(agent.GetSecretKeyRing(), result)
 	return nil
 }
 
-func populateKeyRingResult(kr openpgp.EntityList, result *GetKeyRingResult) {
-	result.Keys = make([]GetKeyInfoResult, len(kr))
+func populateKeyRingResult(kr openpgp.EntityList, result *types.GetKeyRingResult) {
+	result.Keys = make([]types.GetKeyInfoResult, len(kr))
 	for k := range kr {
 		populateKeyInfo(kr[k], &result.Keys[k])
 	}
@@ -78,26 +69,7 @@ func populateKeyRingResult(kr openpgp.EntityList, result *GetKeyRingResult) {
 // Protocol.GetKeyInfo
 //
 
-type GetKeyInfoArgs struct {
-	Address string
-	KeyId   string
-	Lookup  bool
-}
-
-type GetKeyInfoResult struct {
-	HasKey        bool
-	HasSecretKey  bool
-	IsEncrypted   bool
-	Fingerprint   string
-	KeyId         string
-	Summary       string
-	UserIDs       []string
-	UserImage     string
-	KeyData       string
-	SecretKeyData string
-}
-
-func (*Protocol) GetKeyInfo(args GetKeyInfoArgs, result *GetKeyInfoResult) error {
+func (*Protocol) GetKeyInfo(args types.GetKeyInfoArgs, result *types.GetKeyInfoResult) error {
 	logger.Info("Processing GetKeyInfo")
 
 	var k *openpgp.Entity
@@ -127,21 +99,7 @@ func (*Protocol) GetKeyInfo(args GetKeyInfoArgs, result *GetKeyInfoResult) error
 // Protocol.ProcessIncoming
 //
 
-type ProcessIncomingArgs struct {
-	EmailBody  string
-	Passphrase string
-}
-
-type ProcessIncomingResult struct {
-	VerifyResult    int
-	DecryptResult   int
-	EmailBody       string
-	FailureMessage  string
-	EncryptedKeyIds []string
-	SignerKeyId     string
-}
-
-func (*Protocol) ProcessIncoming(args ProcessIncomingArgs, result *ProcessIncomingResult) (e error) {
+func (*Protocol) ProcessIncoming(args types.ProcessIncomingArgs, result *types.ProcessIncomingResult) (e error) {
 	logger.Info("Processing ProcessIncoming")
 	defer catchPanic(&e, "ProcessIncoming")
 
@@ -162,7 +120,7 @@ func (*Protocol) ProcessIncoming(args ProcessIncomingArgs, result *ProcessIncomi
 	return nil
 }
 
-func populateIncomingResult(m *agent.IncomingMail, result *ProcessIncomingResult) {
+func populateIncomingResult(m *agent.IncomingMail, result *types.ProcessIncomingResult) {
 	result.VerifyResult = pgpmail.VerifyNotSigned
 	result.DecryptResult = pgpmail.DecryptNotEncrypted
 
@@ -173,7 +131,7 @@ func populateIncomingResult(m *agent.IncomingMail, result *ProcessIncomingResult
 	}
 }
 
-func populateDecriptionResult(status *pgpmail.DecryptionStatus, result *ProcessIncomingResult) {
+func populateDecriptionResult(status *pgpmail.DecryptionStatus, result *types.ProcessIncomingResult) {
 	result.DecryptResult = status.Code
 	result.VerifyResult = status.VerifyStatus.Code
 
@@ -190,7 +148,7 @@ func populateDecriptionResult(status *pgpmail.DecryptionStatus, result *ProcessI
 	}
 }
 
-func populateVerificationResult(status *pgpmail.VerifyStatus, result *ProcessIncomingResult) {
+func populateVerificationResult(status *pgpmail.VerifyStatus, result *types.ProcessIncomingResult) {
 	result.VerifyResult = status.Code
 	if status.Code == pgpmail.VerifyFailed {
 		result.FailureMessage = status.FailureMessage
@@ -205,21 +163,7 @@ func populateVerificationResult(status *pgpmail.VerifyStatus, result *ProcessInc
 // Protocol.ProcessOutgoing
 //
 
-type ProcessOutgoingArgs struct {
-	Sign       bool
-	Encrypt    bool
-	EmailBody  string
-	Passphrase string
-}
-
-type ProcessOutgoingResult struct {
-	ResultCode          int
-	EmailBody           string
-	FailureMessage      string
-	MissingKeyAddresses []string
-}
-
-func (*Protocol) ProcessOutgoing(args ProcessOutgoingArgs, result *ProcessOutgoingResult) error {
+func (*Protocol) ProcessOutgoing(args types.ProcessOutgoingArgs, result *types.ProcessOutgoingResult) error {
 	logger.Info("Processing ProcessOutgoing")
 
 	s, err := agent.ProcessOutgoingMail(args.EmailBody, args.Sign, args.Encrypt, args.Passphrase)
@@ -235,7 +179,7 @@ func (*Protocol) ProcessOutgoing(args ProcessOutgoingArgs, result *ProcessOutgoi
 	return nil
 }
 
-func processOutgoingStatus(status *pgpmail.EncryptStatus, result *ProcessOutgoingResult) {
+func processOutgoingStatus(status *pgpmail.EncryptStatus, result *types.ProcessOutgoingResult) {
 	result.ResultCode = status.Code
 	if status.Code == pgpmail.StatusFailed {
 		result.FailureMessage = status.FailureMessage
@@ -254,12 +198,7 @@ func processOutgoingStatus(status *pgpmail.EncryptStatus, result *ProcessOutgoin
 // Protocol.UnlockPrivateKey
 //
 
-type UnlockPrivateKeyArgs struct {
-	KeyId      string
-	Passphrase string
-}
-
-func (*Protocol) UnlockPrivateKey(args UnlockPrivateKeyArgs, result *bool) error {
+func (*Protocol) UnlockPrivateKey(args types.UnlockPrivateKeyArgs, result *bool) error {
 	logger.Info("Processing.UnlockPrivateKey")
 	err := agent.UnlockPrivateKey(args.KeyId, []byte(args.Passphrase))
 
@@ -270,14 +209,8 @@ func (*Protocol) UnlockPrivateKey(args UnlockPrivateKeyArgs, result *bool) error
 //
 // Protocol.GenerateKeys
 //
-type GenerateKeysArgs struct {
-	RealName   string
-	Email      string
-	Comment    string
-	Passphrase string
-}
 
-func (*Protocol) GenerateKeys(args GenerateKeysArgs, result *GetKeyInfoResult) error {
+func (*Protocol) GenerateKeys(args types.GenerateKeysArgs, result *types.GetKeyInfoResult) error {
 	logger.Info("Processing GenerateKeys")
 	e, err := agent.GenerateNewKey(args.RealName, args.Comment, args.Email, []byte(args.Passphrase))
 	if err != nil {
@@ -291,17 +224,7 @@ func (*Protocol) GenerateKeys(args GenerateKeysArgs, result *GetKeyInfoResult) e
 //
 //Protocol.PublishToKeyserver
 //
-type PublishToKeyserverArgs struct {
-	Fingerprint string
-	LongKeyId   string
-	ShortKeyId  string
-
-	KeyServer string
-}
-
-type PublishToKeyserverResult struct{}
-
-func (*Protocol) PublishToKeyserver(args PublishToKeyserverArgs, result *PublishToKeyserverResult) error {
+func (*Protocol) PublishToKeyserver(args types.PublishToKeyserverArgs, result *types.PublishToKeyserverResult) error {
 	logger.Info("Processing PublishToKeyserver")
 	//defer catchPanic(&e, "PublishToKeyserver")
 	return agent.PublishToKeyserver(args.LongKeyId, args.KeyServer)
@@ -320,12 +243,8 @@ func catchPanic(err *error, fname string) {
 //
 //Protocol.UpdateExpirationFor
 //
-type UpdateExpirationForArgs struct {
-	KeyId        string
-	Expiratation uint32
-}
 
-func (*Protocol) UpdateExpirationFor(args UpdateExpirationForArgs, result *bool) error {
+func (*Protocol) UpdateExpirationFor(args types.UpdateExpirationForArgs, result *bool) error {
 	logger.Info("Processing.UpdateExpirationFor")
 
 	ok, err := agent.UpdateExpirationFor(args.KeyId, args.Expiratation)
@@ -338,16 +257,7 @@ func (*Protocol) UpdateExpirationFor(args UpdateExpirationForArgs, result *bool)
 // protocol.KeyserverLookup
 //
 
-type KeyserverLookupArgs struct {
-	Search    string
-	KeyServer string
-}
-
-type KeyserverLookupResult struct {
-	Indexes []*hkps.Index //XXX Is there any problem if this is a pointer?
-}
-
-func (*Protocol) KeyserverLookup(args KeyserverLookupArgs, result *KeyserverLookupResult) error {
+func (*Protocol) KeyserverLookup(args types.KeyServerSearchArgs, result *types.KeyserverLookupResult) error {
 	logger.Info("Processing.KeyserverLookup")
 
 	var err error

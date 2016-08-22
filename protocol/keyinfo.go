@@ -5,11 +5,12 @@ import (
 	"encoding/hex"
 
 	"github.com/twstrike/nyms-agent/keymgr"
+	"github.com/twstrike/nyms-agent/protocol/types"
 
 	"golang.org/x/crypto/openpgp"
 )
 
-func populateKeyInfo(k *openpgp.Entity, info *GetKeyInfoResult) {
+func populateKeyInfo(k *openpgp.Entity, info *types.GetKeyInfoResult) {
 	info.HasKey = true
 	if k.PrivateKey != nil {
 		info.HasSecretKey = true

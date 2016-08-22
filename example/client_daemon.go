@@ -5,8 +5,9 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 
-	"github.com/twstrike/nyms-agent/protocol"
+	"github.com/twstrike/nyms-agent/protocol/types"
 )
 
 func main() {
@@ -17,8 +18,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := protocol.NewClient(conn)
-
+	c := jsonrpc.NewClient(conn)
 	getVersion(c)
 	getPublicKeyRing(c)
 	getSecretKeyRing(c)
@@ -33,7 +33,7 @@ func main() {
 
 func getVersion(c *rpc.Client) {
 	var version int
-	err := c.Call("Protocol.Version", protocol.VoidArg{}, &version)
+	err := c.Call("Protocol.Version", types.VoidArg{}, &version)
 	if err != nil {
 		log.Fatal("Version error:", err)
 	}
@@ -41,8 +41,8 @@ func getVersion(c *rpc.Client) {
 }
 
 func getPublicKeyRing(c *rpc.Client) {
-	var pubKeyRing protocol.GetKeyRingResult
-	err := c.Call("Protocol.GetPublicKeyRing", protocol.VoidArg{}, &pubKeyRing)
+	var pubKeyRing types.GetKeyRingResult
+	err := c.Call("Protocol.GetPublicKeyRing", types.VoidArg{}, &pubKeyRing)
 	if err != nil {
 		log.Fatal("GetPublicKeyRing error:", err)
 	}
@@ -50,8 +50,8 @@ func getPublicKeyRing(c *rpc.Client) {
 }
 
 func getSecretKeyRing(c *rpc.Client) {
-	var secKeyRing protocol.GetKeyRingResult
-	err := c.Call("Protocol.GetSecretKeyRing", protocol.VoidArg{}, &secKeyRing)
+	var secKeyRing types.GetKeyRingResult
+	err := c.Call("Protocol.GetSecretKeyRing", types.VoidArg{}, &secKeyRing)
 	if err != nil {
 		log.Fatal("GetSecretKeyRing error:", err)
 	}
@@ -59,7 +59,7 @@ func getSecretKeyRing(c *rpc.Client) {
 }
 
 func updateKeyExpiration(c *rpc.Client) {
-	var updateExpirationForArgs = protocol.UpdateExpirationForArgs{
+	var updateExpirationForArgs = types.UpdateExpirationForArgs{
 		KeyId:        "97372B211CADF401",
 		Expiratation: 10000,
 	}
@@ -71,8 +71,8 @@ func updateKeyExpiration(c *rpc.Client) {
 
 }
 func publishToKeyserver(c *rpc.Client) {
-	publishReturn := &protocol.PublishToKeyserverResult{}
-	err := c.Call("Protocol.PublishToKeyserver", protocol.PublishToKeyserverArgs{
+	publishReturn := &types.PublishToKeyserverResult{}
+	err := c.Call("Protocol.PublishToKeyserver", types.PublishToKeyserverArgs{
 		//ShortKeyId: "1CADF401",
 		LongKeyId: "97372B211CADF401",
 		//Fingerprint: "579EBCB26C9772CDB7A896F297372B211CADF401",
@@ -87,8 +87,8 @@ func publishToKeyserver(c *rpc.Client) {
 }
 
 func lookupPublicKey(c *rpc.Client) {
-	lookupReturn := &protocol.KeyserverLookupResult{}
-	err := c.Call("Protocol.KeyserverLookup", protocol.KeyserverLookupArgs{
+	lookupReturn := &types.KeyserverLookupResult{}
+	err := c.Call("Protocol.KeyserverLookup", types.KeyServerSearchArgs{
 		Search:    "nyms",
 		KeyServer: "hkp://localhost:11371",
 	}, lookupReturn)
@@ -100,9 +100,9 @@ func lookupPublicKey(c *rpc.Client) {
 	fmt.Printf("lookupResult: %#v\n", lookupReturn)
 }
 
-func generateKeys(c *rpc.Client) protocol.GetKeyInfoResult {
-	var generatedKey protocol.GetKeyInfoResult
-	err := c.Call("Protocol.GenerateKeys", protocol.GenerateKeysArgs{
+func generateKeys(c *rpc.Client) types.GetKeyInfoResult {
+	var generatedKey types.GetKeyInfoResult
+	err := c.Call("Protocol.GenerateKeys", types.GenerateKeysArgs{
 		"Nyms IO", "nyms-agent@nyms.io", "", "pass",
 	}, &generatedKey)
 	if err != nil {
@@ -112,9 +112,9 @@ func generateKeys(c *rpc.Client) protocol.GetKeyInfoResult {
 	return generatedKey
 }
 
-func getKeyInfoByKeyId(c *rpc.Client, keyId string) protocol.GetKeyInfoResult {
-	var gotKey protocol.GetKeyInfoResult
-	err := c.Call("Protocol.GetKeyInfo", protocol.GetKeyInfoArgs{
+func getKeyInfoByKeyId(c *rpc.Client, keyId string) types.GetKeyInfoResult {
+	var gotKey types.GetKeyInfoResult
+	err := c.Call("Protocol.GetKeyInfo", types.GetKeyInfoArgs{
 		"", keyId, true,
 	}, &gotKey)
 	if err != nil {
@@ -126,7 +126,7 @@ func getKeyInfoByKeyId(c *rpc.Client, keyId string) protocol.GetKeyInfoResult {
 
 func unlock(c *rpc.Client, keyId string) {
 	var unlockReturn bool
-	err := c.Call("Protocol.UnlockPrivateKey", protocol.UnlockPrivateKeyArgs{
+	err := c.Call("Protocol.UnlockPrivateKey", types.UnlockPrivateKeyArgs{
 		KeyId:      keyId,
 		Passphrase: "pass",
 	}, &unlockReturn)
