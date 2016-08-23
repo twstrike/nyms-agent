@@ -3,7 +3,9 @@ package agent
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"golang.org/x/crypto/openpgp"
@@ -73,6 +75,32 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 	}
 
 	return keymgr.GetKeyLocker().GetPublicKeyById(id), nil
+}
+
+//XXX This should be replaced by a call to the pinentry as soon as Ivan is done.
+func promptFunctionFromPassphrase(passphrase []byte) openpgp.PromptFunction {
+	first := true
+	return func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
+		if first && passphrase != nil {
+			for _, k := range keys {
+				k.PrivateKey.Decrypt(passphrase)
+			}
+			first = false
+			return passphrase, nil
+		}
+
+		return nil, errors.New("no passphrase provided")
+	}
+}
+
+//XXX Should we provide a configuration?
+func openpgpConfig() *packet.Config {
+	return nil
+}
+
+func ReadMessage(in io.Reader, passphrase []byte) (*openpgp.MessageDetails, error) {
+	keyring := keymgr.GetKeyLocker().GetSecretKeyRing()
+	return openpgp.ReadMessage(in, keyring, promptFunctionFromPassphrase(passphrase), openpgpConfig())
 }
 
 type IncomingMail struct {
