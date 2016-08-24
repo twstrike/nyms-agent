@@ -136,6 +136,42 @@ func Encrypt(in io.Reader, longKeyID string) (io.Reader, error) {
 	return buffer, nil
 }
 
+func EncryptAndSign(in io.Reader, encryptionKeyID, signingKeyID string, passphrase []byte) (io.Reader, error) {
+	id, err := decodeKeyId(encryptionKeyID)
+	if err != nil {
+		return nil, err
+	}
+
+	k := keymgr.GetKeyLocker().GetPublicKeyById(id)
+	if k == nil {
+		return nil, errors.New("could not find a key to use for encryption")
+	}
+
+	id, err = decodeKeyId(signingKeyID)
+	if err != nil {
+		return nil, err
+	}
+
+	signingKey := keymgr.GetKeyLocker().GetSecretKeyById(id)
+	if signingKey == nil {
+		return nil, errors.New("could not find a key to use for signing")
+	}
+
+	buffer := new(bytes.Buffer)
+	w, err := openpgp.Encrypt(buffer, openpgp.EntityList{k}, signingKey, nil, openpgpConfig())
+	if err != nil {
+		return nil, err
+	}
+	defer w.Close()
+
+	_, err = io.Copy(w, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer, nil
+}
+
 type IncomingMail struct {
 	*pgpmail.Message
 	*pgpmail.DecryptionStatus

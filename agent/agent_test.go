@@ -181,3 +181,46 @@ func TestAgentEncryptWithoutSigning(t *testing.T) {
 		t.Errorf("unexpected message: %s", string(decrypted))
 	}
 }
+
+func TestAgentEncryptWithSigning(t *testing.T) {
+	//Public key 1CADF401 is in nyms-datadir
+	//Private key A2155668 is in nyms-datadir
+	keymgr.Load(&keymgr.Conf{
+		GPGConfDir:  "../testdata/gpg-datadir",
+		NymsConfDir: "../testdata/nyms-datadir",
+	})
+
+	expectedMessage := "hello"
+	in := bytes.NewBufferString(expectedMessage)
+
+	//XXX Should we support both fp (579EBCB26C9772CDB7A896F297372B211CADF401)
+	//and long key id (97372B211CADF401) as IDs?
+	enc, err := EncryptAndSign(in, "97372B211CADF401", "67CF11A5A2155668", []byte{})
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	m, err := ReadMessage(enc, []byte(""))
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if !m.IsEncrypted {
+		t.Errorf("message should be encrypted")
+	}
+
+	if !m.IsSigned {
+		t.Errorf("message should be signed")
+	}
+
+	b := new(bytes.Buffer)
+	_, err = b.ReadFrom(m.UnverifiedBody)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	decrypted := b.String()
+	if decrypted != expectedMessage {
+		t.Errorf("unexpected message: %s", string(decrypted))
+	}
+}
