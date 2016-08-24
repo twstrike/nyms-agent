@@ -176,6 +176,10 @@ func TestAgentDecryptSignedMessage(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
+	if m.SignatureError != nil {
+		t.Errorf("unexpected error: %s", m.SignatureError)
+	}
+
 	decrypted := b.String()
 	if decrypted != "hello world\n" {
 		t.Errorf("unexpected message: %q", string(decrypted))
@@ -301,6 +305,10 @@ func TestAgentEncryptWithSigning(t *testing.T) {
 	_, err = b.ReadFrom(m.UnverifiedBody)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
+	}
+
+	if m.SignatureError != nil {
+		t.Errorf("unexpected error: %s", m.SignatureError)
 	}
 
 	decrypted := b.String()
