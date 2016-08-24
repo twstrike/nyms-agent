@@ -30,6 +30,48 @@ S/sGL6tW+ESIP0ImWtsM3FX+GTgQgP7L
 -----END PGP MESSAGE-----
 `
 
+// echo "hello world" | gpg --sign -u A2155668 -a -
+var compressedSignedData = `
+-----BEGIN PGP MESSAGE-----
+
+owEBQgK9/ZANAwAKAWfPEaWiFVZoAcsSYgBXvejPaGVsbG8gd29ybGQKiQIcBAAB
+CgAGBQJXvejPAAoJEGfPEaWiFVZo8iQQAIYqXQsRPgTlkopIKQR8SL1DVVesKBzb
+1U9Rt0KOKvOGN/5Q9eqFOFc7DD6K1NChbFodH8+3s/hGtIefwXVdcxI0mMNcenzC
+xZq4+botL9W57Mb0iIPFa0KUgNYoDjYQ9QOvlt7eGOhaxDFfi+CcUVVqreCgLFyk
+vwSWy0eMgKu/ASKJ/pj2v5EA97QVxDmbfuCXwGJWATpqcb+z7nszkHBMYGJV4RaA
+JsOceXg6IPqvOj7pyuPzxK+uMC6Z6p1btJoLVnd6IyR6uCBljJXoqWkWPXm0XZ4h
+XeMdHyWYjgRU8n3zl6JXOVGR4qW1Bqg/GC0wdYvrOgOgvDWYVZKPtReIbP8Ta1AQ
+82QHsYGw3IoJl2/hqnLUeo2stsNa3oLU3ycEIzlM+N/Zsf/SdpMRpXkfZwVZjcpy
+Oxmj/p9iuPNYZJ6Trl7stNh5rv6gE4gLU+cV+X51JjZ+bDJQSW8wby6A1xWnBIXg
+Dw4exvqTNE0Z3tj4iPGFb6TJu9aK+V3vUdj73E3b4vrD3f17x3Ed+mDXMVkUR9dH
+w9vP0Lan3T+f130KilhB1CY8iEYFOIsvsqI/TCrd6VcHUG9HO8st0DW60zdTluDe
+8mPdZQS1xzVVWGNNhGZd1TF0dX4jgx3LqkWMKOosOBDTQiT39Z1Xa0QndaXdb3Jz
+UUVZPZ7tqs3E
+=BHMB
+-----END PGP MESSAGE-----
+`
+
+// echo "hello world" | gpg --sign -u A2155668 -z 0 -a -
+var signedData = `
+-----BEGIN PGP MESSAGE-----
+
+kA0DAAoBZ88RpaIVVmgByxJiAFe95b1oZWxsbyB3b3JsZAqJAhwEAAEKAAYFAle9
+5b0ACgkQZ88RpaIVVmjiqQ//eG+9VPmWLmDgD5z4RJxMQTVMUc98y/4n4GWytNto
+cn+DMGlADx8h4tLx2BKT16VR4iC/Hz4WUQVNJ8M3jinJtb/XcmMo1nwaFe8IojEi
+4fmjfO6fO5ci90XUe0E8AUXtfF04bIZHr1VldHHrPM3NZBA76LwDqv3mIKsSoEnZ
+wKWoVyDZpMwoQg6bNi96+DcM9WndQwDjBGoZ83zrk6LLacot+H4i5iLMpt52JskT
+zQXE6rxKS4nlElt3A8TmnePNbfFIp6df7e4Xh+Ex71+SCw3aezHhd/Rbyzwf5Yq7
+8m8YBb6BB+rEp7zK67VkVt14WLR7dd9HONrhWKQjBuUfKmOJPuIhK9zjlEHFMrX1
+CtXoo9Rvf8VkyTIbsC4c2uYYJtixL/VvjJl6KEsmHEpxR4A0RfUIv+VbncDsfmUg
+VthFBdA+t8Uay/qEVtYIuMigsMtx4nFUdm0MQ/4etR+c3nuJannQjAw9UFwqC5Yj
+7xKTk8zAwiaDZsM64yqsxk0C1xzm9qZnfeQ86ctlGM2BNHjicxdGWBMXGD3AW8ai
+j9jqXCjBIp25cLCYimSC9EoUevEeJaWnTtLqVDcGtxPo+o1MwBAQcpf3HnhS6F3w
+An1PFTXxbQZlg6P6rFpEYSgEyrKxb7Ec/JIfQdBP0DZDkHe81IjCOV330U++sN7A
++RQ=
+=Veaa
+-----END PGP MESSAGE-----
+`
+
 // echo "hello world" | gpg --encrypt --sign -r 1CADF401 -u A2155668 -a -
 var encryptedAndSignedData = `
 -----BEGIN PGP MESSAGE-----
@@ -137,6 +179,48 @@ func TestAgentDecryptSignedMessage(t *testing.T) {
 	decrypted := b.String()
 	if decrypted != "hello world\n" {
 		t.Errorf("unexpected message: %q", string(decrypted))
+	}
+}
+
+func TestAgentVerifySignedMessage(t *testing.T) {
+	//Public Key A2155668 is in nyms-datadir
+	keymgr.Load(&keymgr.Conf{
+		GPGConfDir:  "../testdata/gpg-datadir",
+		NymsConfDir: "../testdata/nyms-datadir",
+	})
+
+	armored := bytes.NewBufferString(compressedSignedData)
+	block, err := armor.Decode(armored)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	m, err := ReadMessage(block.Body, []byte(""))
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if m.IsEncrypted {
+		t.Errorf("message should NOT be encrypted")
+	}
+
+	if !m.IsSigned {
+		t.Errorf("message should be signed")
+	}
+
+	b := new(bytes.Buffer)
+	_, err = b.ReadFrom(m.UnverifiedBody)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if m.SignatureError != nil {
+		t.Errorf("unexpected error: %s", m.SignatureError)
+	}
+
+	message := b.String()
+	if message != "hello world\n" {
+		t.Errorf("unexpected message: %q", string(message))
 	}
 }
 
