@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -101,6 +102,38 @@ func openpgpConfig() *packet.Config {
 func ReadMessage(in io.Reader, passphrase []byte) (*openpgp.MessageDetails, error) {
 	keyring := keymgr.GetKeyLocker().GetSecretKeyRing()
 	return openpgp.ReadMessage(in, keyring, promptFunctionFromPassphrase(passphrase), openpgpConfig())
+}
+
+//XXX Should it support using fingerprint as keyID?
+//XXX Should it support encrypting to multiple keys?
+//XXX Should we have a EncryptFile that adds FileHints metadata?
+
+// Encrypts data from in and returns a io.Reader with encrypted data.
+// Both in and out data are note ASCII-armored.
+func Encrypt(in io.Reader, longKeyID string) (io.Reader, error) {
+	id, err := decodeKeyId(longKeyID)
+	if err != nil {
+		return nil, err
+	}
+
+	k := keymgr.GetKeyLocker().GetSecretKeyById(id)
+	if k == nil {
+		return nil, errors.New("could not find a key to use for encryption")
+	}
+
+	buffer := new(bytes.Buffer)
+	w, err := openpgp.Encrypt(buffer, openpgp.EntityList{k}, nil, nil, openpgpConfig())
+	if err != nil {
+		return nil, err
+	}
+	defer w.Close()
+
+	_, err = io.Copy(w, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer, nil
 }
 
 type IncomingMail struct {
