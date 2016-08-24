@@ -116,7 +116,7 @@ func Encrypt(in io.Reader, longKeyID string) (io.Reader, error) {
 		return nil, err
 	}
 
-	k := keymgr.GetKeyLocker().GetSecretKeyById(id)
+	k := keymgr.GetKeyLocker().GetPublicKeyById(id)
 	if k == nil {
 		return nil, errors.New("could not find a key to use for encryption")
 	}

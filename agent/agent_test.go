@@ -141,7 +141,7 @@ func TestAgentDecryptSignedMessage(t *testing.T) {
 }
 
 func TestAgentEncryptWithoutSigning(t *testing.T) {
-	//Private key 1CADF401 is in nyms-datadir
+	//Public key 1CADF401 is in nyms-datadir
 	keymgr.Load(&keymgr.Conf{
 		GPGConfDir:  "../testdata/gpg-datadir",
 		NymsConfDir: "../testdata/nyms-datadir",
