@@ -17,6 +17,23 @@ import (
 	"golang.org/x/crypto/openpgp/s2k"
 )
 
+var supportedHashes, supportedCiphers []uint8
+
+func init() {
+	supportedHashes = []uint8{
+		hashToHashId(crypto.SHA256),
+		hashToHashId(crypto.SHA512),
+		hashToHashId(crypto.SHA1),
+		hashToHashId(crypto.RIPEMD160),
+	}
+
+	supportedCiphers = []uint8{
+		uint8(packet.CipherAES128),
+		uint8(packet.CipherAES256),
+		uint8(packet.CipherCAST5),
+	}
+}
+
 // DetachSign signs message with the private key from signer (which must
 // already have been decrypted) and writes the signature to w.
 // If config is nil, sensible defaults will be used.
@@ -169,49 +186,57 @@ func hashToHashId(h crypto.Hash) uint8 {
 // the recipients in processing the message. The resulting WriteCloser must
 // be closed after the contents of the file have been written.
 // If config is nil, sensible defaults will be used.
-func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHints, config *packet.Config) (plaintext io.WriteCloser, err error) {
-	var signer *packet.PrivateKey
-	if signed != nil {
-		signKey, ok := signed.signingKey(config.Now())
-		if !ok {
-			return nil, errors.InvalidArgumentError("no valid signing keys")
-		}
-		signer = signKey.PrivateKey
-		if signer == nil {
-			return nil, errors.InvalidArgumentError("no private key in signing key")
-		}
-		if signer.Encrypted {
-			return nil, errors.InvalidArgumentError("signing key must be decrypted")
-		}
+func Encrypt(ciphertext io.Writer, to []*Entity, signer *Entity, hints *FileHints, config *packet.Config) (plaintext io.WriteCloser, err error) {
+	cipher, hash, err := chooseCompatibleCipherAndHash(to, config)
+	if err != nil {
+		return nil, err
 	}
 
+	encryptedData, err := publicKeyEncrypt(ciphertext, to, cipher, config)
+	if err != nil {
+		return nil, err
+	}
+
+	if signer == nil {
+		return serializeLiteralWithHints(encryptedData, hints)
+	}
+
+	return attachSignature(encryptedData, signer, hash, hints, config)
+}
+
+func chooseCompatibleCipherAndHash(to EntityList, config *packet.Config) (packet.CipherFunction, crypto.Hash, error) {
+	candidateCiphers, candidateHashes, err := candidateCiphersAndHashesFor(to)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	cipher, err := chooseCipherFromCandidates(candidateCiphers, config.Cipher())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	hash, err := chooseHashFromCandidates(candidateHashes, config.Hash())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return cipher, hash, nil
+}
+
+func candidateCiphersAndHashesFor(to EntityList) (candidateCiphers, candidateHashes []uint8, err error) {
 	// These are the possible ciphers that we'll use for the message.
-	candidateCiphers := []uint8{
-		uint8(packet.CipherAES128),
-		uint8(packet.CipherAES256),
-		uint8(packet.CipherCAST5),
-	}
+	candidateCiphers = append(make([]uint8, 0, len(supportedCiphers)), supportedCiphers...)
+
 	// These are the possible hash functions that we'll use for the signature.
-	candidateHashes := []uint8{
-		hashToHashId(crypto.SHA256),
-		hashToHashId(crypto.SHA512),
-		hashToHashId(crypto.SHA1),
-		hashToHashId(crypto.RIPEMD160),
-	}
+	candidateHashes = append(make([]uint8, 0, len(supportedHashes)), supportedHashes...)
+
 	// In the event that a recipient doesn't specify any supported ciphers
 	// or hash functions, these are the ones that we assume that every
 	// implementation supports.
 	defaultCiphers := candidateCiphers[len(candidateCiphers)-1:]
 	defaultHashes := candidateHashes[len(candidateHashes)-1:]
 
-	encryptKeys := make([]Key, len(to))
 	for i := range to {
-		var ok bool
-		encryptKeys[i], ok = to[i].encryptionKey(config.Now())
-		if !ok {
-			return nil, errors.InvalidArgumentError("cannot encrypt a message to key id " + strconv.FormatUint(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
-		}
-
 		sig := to[i].primaryIdentity().SelfSignature
 
 		preferredSymmetric := sig.PreferredSymmetric
@@ -227,49 +252,60 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 	}
 
 	if len(candidateCiphers) == 0 || len(candidateHashes) == 0 {
-		return nil, errors.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
+		return nil, nil, errors.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
 	}
 
-	cipher := packet.CipherFunction(candidateCiphers[0])
+	return
+}
+
+func chooseCipherFromCandidates(candidateCiphers []uint8, configuredCipher packet.CipherFunction) (packet.CipherFunction, error) {
 	// If the cipher specified by config is a candidate, we'll use that.
-	configuredCipher := config.Cipher()
 	for _, c := range candidateCiphers {
 		cipherFunc := packet.CipherFunction(c)
 		if cipherFunc == configuredCipher {
-			cipher = cipherFunc
-			break
+			return cipherFunc, nil
 		}
 	}
 
-	var hash crypto.Hash
-	for _, hashId := range candidateHashes {
-		if h, ok := s2k.HashIdToHash(hashId); ok && h.Available() {
-			hash = h
-			break
-		}
-	}
+	return packet.CipherFunction(candidateCiphers[0]), nil
+}
 
+func chooseHashFromCandidates(candidateHashes []uint8, configuredHash crypto.Hash) (crypto.Hash, error) {
 	// If the hash specified by config is a candidate, we'll use that.
-	if configuredHash := config.Hash(); configuredHash.Available() {
+	if configuredHash.Available() {
 		for _, hashId := range candidateHashes {
 			if h, ok := s2k.HashIdToHash(hashId); ok && h == configuredHash {
-				hash = h
-				break
+				return h, nil
 			}
 		}
 	}
 
-	if hash == 0 {
-		hashId := candidateHashes[0]
-		name, ok := s2k.HashIdToString(hashId)
-		if !ok {
-			name = "#" + strconv.Itoa(int(hashId))
+	for _, hashId := range candidateHashes {
+		if h, ok := s2k.HashIdToHash(hashId); ok && h.Available() {
+			return h, nil
 		}
-		return nil, errors.InvalidArgumentError("cannot encrypt because no candidate hash functions are compiled in. (Wanted " + name + " in this case.)")
+	}
+
+	hashId := candidateHashes[0]
+	name, ok := s2k.HashIdToString(hashId)
+	if !ok {
+		name = "#" + strconv.Itoa(int(hashId))
+	}
+	return 0, errors.InvalidArgumentError("cannot encrypt because no candidate hash functions are compiled in. (Wanted " + name + " in this case.)")
+}
+
+func publicKeyEncrypt(ciphertext io.Writer, to []*Entity, cipher packet.CipherFunction, config *packet.Config) (plaintext io.WriteCloser, err error) {
+	if len(to) == 0 {
+		return nil, errors.InvalidArgumentError("cannot encrypt without encryption keys")
 	}
 
 	symKey := make([]byte, cipher.KeySize())
 	if _, err := io.ReadFull(config.Random(), symKey); err != nil {
+		return nil, err
+	}
+
+	encryptKeys, err := encryptionKeysFor(to, config.Now())
+	if err != nil {
 		return nil, err
 	}
 
@@ -279,49 +315,105 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 		}
 	}
 
-	encryptedData, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey, config)
-	if err != nil {
-		return
-	}
+	//XXX Can we use compression here? See symmetrically encrypted.
+	return packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey, config)
+}
 
-	if signer != nil {
-		ops := &packet.OnePassSignature{
-			SigType:    packet.SigTypeBinary,
-			Hash:       hash,
-			PubKeyAlgo: signer.PubKeyAlgo,
-			KeyId:      signer.KeyId,
-			IsLast:     true,
-		}
-		if err := ops.Serialize(encryptedData); err != nil {
-			return nil, err
+func encryptionKeysFor(to EntityList, now time.Time) ([]Key, error) {
+	ret := make([]Key, len(to))
+
+	var ok bool
+	for i := range to {
+		ret[i], ok = to[i].encryptionKey(now)
+		if !ok {
+			return nil, errors.InvalidArgumentError("cannot encrypt a message to key id " + strconv.FormatUint(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
 		}
 	}
 
+	return ret, nil
+}
+
+func serializeLiteralWithHints(dst io.WriteCloser, hints *FileHints) (io.WriteCloser, error) {
 	if hints == nil {
 		hints = &FileHints{}
 	}
 
-	w := encryptedData
-	if signer != nil {
-		// If we need to write a signature packet after the literal
-		// data then we need to stop literalData from closing
-		// encryptedData.
-		w = noOpCloser{encryptedData}
-
-	}
 	var epochSeconds uint32
 	if !hints.ModTime.IsZero() {
 		epochSeconds = uint32(hints.ModTime.Unix())
 	}
-	literalData, err := packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, epochSeconds)
+
+	return packet.SerializeLiteral(dst, hints.IsBinary, hints.FileName, epochSeconds)
+}
+
+// Sign attaches a digital signature to a message with the private key from
+// signer to a message (which must already have been decrypted) and writes it
+// to dst.  hints contains optional information, that aids the recipients in
+// processing the message. The resulting WriteCloser must be closed after the
+// contents of the file have been written. If config is nil, sensible defaults
+// will be used.
+// Sign acts like gpg -s (without -c)
+func Sign(dst io.WriteCloser, signer *Entity, hints *FileHints, config *packet.Config) (io.WriteCloser, error) {
+	hash, err := chooseHashFromCandidates(supportedHashes, config.Hash())
 	if err != nil {
 		return nil, err
 	}
 
-	if signer != nil {
-		return signatureWriter{encryptedData, literalData, hash, hash.New(), signer, config}, nil
+	return attachSignature(dst, signer, hash, hints, config)
+}
+
+func attachSignature(dst io.WriteCloser, signed *Entity, hash crypto.Hash, hints *FileHints, config *packet.Config) (io.WriteCloser, error) {
+	signer, err := signingKeyFromEntity(signed, config.Now())
+	if err != nil {
+		return nil, err
 	}
-	return literalData, nil
+
+	if signer == nil {
+		return nil, errors.InvalidArgumentError("cant sign without a signer key")
+	}
+
+	ops := &packet.OnePassSignature{
+		SigType:    packet.SigTypeBinary,
+		Hash:       hash,
+		PubKeyAlgo: signer.PubKeyAlgo,
+		KeyId:      signer.KeyId,
+		IsLast:     true,
+	}
+
+	if err := ops.Serialize(dst); err != nil {
+		return nil, err
+	}
+
+	// If we need to write a signature packet after the literal
+	// data then we need to stop literalData from closing
+	// encryptedData.
+	w := noOpCloser{dst}
+	literalData, err := serializeLiteralWithHints(w, hints)
+	if err != nil {
+		return nil, err
+	}
+
+	return signatureWriter{dst, literalData, hash, hash.New(), signer, config}, nil
+}
+
+func signingKeyFromEntity(signed *Entity, now time.Time) (*packet.PrivateKey, error) {
+	if signed == nil {
+		return nil, nil
+	}
+
+	signKey, ok := signed.signingKey(now)
+	if !ok {
+		return nil, errors.InvalidArgumentError("no valid signing keys")
+	}
+	signer := signKey.PrivateKey
+	if signer == nil {
+		return nil, errors.InvalidArgumentError("no private key in signing key")
+	}
+	if signer.Encrypted {
+		return nil, errors.InvalidArgumentError("signing key must be decrypted")
+	}
+
+	return signer, nil
 }
 
 // signatureWriter hashes the contents of a message while passing it along to
