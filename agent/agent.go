@@ -100,6 +100,7 @@ func openpgpConfig() *packet.Config {
 }
 
 func ReadMessage(in io.Reader, passphrase []byte) (*openpgp.MessageDetails, error) {
+	//Should we merge public and secret here?
 	keyring := keymgr.GetKeyLocker().GetSecretKeyRing()
 	return openpgp.ReadMessage(in, keyring, promptFunctionFromPassphrase(passphrase), openpgpConfig())
 }
@@ -108,9 +109,10 @@ func ReadMessage(in io.Reader, passphrase []byte) (*openpgp.MessageDetails, erro
 //XXX Should it support encrypting to multiple keys?
 //XXX Should we have a EncryptFile that adds FileHints metadata?
 
-// Encrypts data from in and returns a io.Reader with encrypted data.
-// Both in and out data are note ASCII-armored.
-func Encrypt(in io.Reader, longKeyID string) (io.Reader, error) {
+// Encrypt encrypts a message to longKeyID. The resulting WriteCloser must be
+// closed after the contents have been written.
+// The publick key for longKeyID must be in the agent's public keyring.
+func Encrypt(dst io.Writer, longKeyID string) (io.WriteCloser, error) {
 	id, err := decodeKeyId(longKeyID)
 	if err != nil {
 		return nil, err
@@ -121,19 +123,7 @@ func Encrypt(in io.Reader, longKeyID string) (io.Reader, error) {
 		return nil, errors.New("could not find a key to use for encryption")
 	}
 
-	buffer := new(bytes.Buffer)
-	w, err := openpgp.Encrypt(buffer, openpgp.EntityList{k}, nil, nil, openpgpConfig())
-	if err != nil {
-		return nil, err
-	}
-	defer w.Close()
-
-	_, err = io.Copy(w, in)
-	if err != nil {
-		return nil, err
-	}
-
-	return buffer, nil
+	return openpgp.Encrypt(dst, openpgp.EntityList{k}, nil, nil, openpgpConfig())
 }
 
 func EncryptAndSign(in io.Reader, encryptionKeyID, signingKeyID string, passphrase []byte) (io.Reader, error) {

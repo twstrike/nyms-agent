@@ -236,14 +236,20 @@ func TestAgentEncryptWithoutSigning(t *testing.T) {
 	})
 
 	expectedMessage := "hello"
-	in := bytes.NewBufferString(expectedMessage)
 
 	//XXX Should we support both fp (579EBCB26C9772CDB7A896F297372B211CADF401)
 	//and long key id (97372B211CADF401) as IDs?
-	enc, err := Encrypt(in, "97372B211CADF401")
+	enc := new(bytes.Buffer)
+	w, err := Encrypt(enc, "97372B211CADF401")
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
+
+	_, err = w.Write([]byte(expectedMessage))
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	w.Close()
 
 	m, err := ReadMessage(enc, []byte(""))
 	if err != nil {
