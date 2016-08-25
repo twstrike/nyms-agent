@@ -162,6 +162,23 @@ func EncryptAndSign(in io.Reader, encryptionKeyID, signingKeyID string, passphra
 	return buffer, nil
 }
 
+// Sign signs a message with signingKeyID. The resulting WriteCloser must be
+// closed after the contents have been written.
+// The publick key for signingKeyID must be in the agent's private keyring.
+func Sign(dst io.WriteCloser, signingKeyID string) (io.WriteCloser, error) {
+	id, err := decodeKeyId(signingKeyID)
+	if err != nil {
+		return nil, err
+	}
+
+	signingKey := keymgr.GetKeyLocker().GetSecretKeyById(id)
+	if signingKey == nil {
+		return nil, errors.New("could not find a key to use for signing")
+	}
+
+	return openpgp.Sign(dst, signingKey, nil, openpgpConfig())
+}
+
 type IncomingMail struct {
 	*pgpmail.Message
 	*pgpmail.DecryptionStatus

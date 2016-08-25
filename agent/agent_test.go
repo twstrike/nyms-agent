@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"golang.org/x/crypto/openpgp/armor"
@@ -320,5 +321,60 @@ func TestAgentEncryptWithSigning(t *testing.T) {
 	decrypted := b.String()
 	if decrypted != expectedMessage {
 		t.Errorf("unexpected message: %s", string(decrypted))
+	}
+}
+
+type nopReadWriterCloser struct {
+	io.ReadWriter
+}
+
+func (*nopReadWriterCloser) Close() error {
+	return nil
+}
+
+func TestAgentSign(t *testing.T) {
+	//Private key A2155668 is in nyms-datadir
+	keymgr.Load(&keymgr.Conf{
+		GPGConfDir:  "../testdata/gpg-datadir",
+		NymsConfDir: "../testdata/nyms-datadir",
+	})
+
+	expectedMessage := "hello"
+	enc := &nopReadWriterCloser{new(bytes.Buffer)}
+
+	//XXX Should we support both fp (579EBCB26C9772CDB7A896F297372B211CADF401)
+	//and long key id (97372B211CADF401) as IDs?
+	w, err := Sign(enc, "67CF11A5A2155668")
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	_, err = w.Write([]byte(expectedMessage))
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	w.Close()
+
+	m, err := ReadMessage(enc, []byte(""))
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if m.IsEncrypted {
+		t.Errorf("message should not be encrypted")
+	}
+
+	if !m.IsSigned {
+		t.Errorf("message should be signed")
+	}
+
+	b := new(bytes.Buffer)
+	_, err = b.ReadFrom(m.UnverifiedBody)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	if m.SignatureError != nil {
+		t.Errorf("unexpected error: %s", m.SignatureError)
 	}
 }
