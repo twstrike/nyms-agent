@@ -13,13 +13,15 @@ type combinedKeySource struct {
 }
 
 func (s *combinedKeySource) GetPublicKeyRing() openpgp.EntityList {
-	//TODO: merge the list
+	ret := make(openpgp.EntityList, 0, 10) //10 is totally arbitrary
+
 	for _, this := range s.sources {
 		if kr := this.GetPublicKeyRing(); kr != nil {
-			return kr
+			ret = append(ret, kr...)
 		}
 	}
-	return nil
+
+	return ret
 }
 
 func (s *combinedKeySource) GetPublicKey(address string) (*openpgp.Entity, error) {
@@ -87,11 +89,13 @@ func (s *combinedKeySource) GetSecretKeyById(keyid uint64) *openpgp.Entity {
 }
 
 func (s *combinedKeySource) GetSecretKeyRing() openpgp.EntityList {
-	//TODO: merge the list
+	ret := make(openpgp.EntityList, 0, 10) //10 is totally arbitrary
+
 	for _, this := range s.sources {
 		if kr := this.GetSecretKeyRing(); kr != nil {
-			return kr
+			ret = append(ret, kr...)
 		}
 	}
-	return nil
+
+	return ret
 }
