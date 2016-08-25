@@ -14,7 +14,7 @@ import (
 type keyStore struct {
 	rootPath string
 
-	publicKeys openpgp.EntityList
+	publicKeys openpgp.EntityList //XXX Why not openpgp.KeyRing?
 	secretKeys openpgp.EntityList
 }
 

@@ -19,6 +19,7 @@ var logger = gl.MustGetLogger("keymgr")
 
 var nymsDirectory = ""
 
+//XXX Should this implement openpgp.KeyRing rather than specialized functions?
 type KeySource interface {
 	GetPublicKeyRing() openpgp.EntityList
 	GetPublicKey(address string) (*openpgp.Entity, error)
