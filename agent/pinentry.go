@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"runtime"
 )
 
 type pinentry interface {
@@ -133,7 +134,13 @@ func (c *pinentryClient) Close() {
 	return
 }
 
-func NewPinentryClient(path string) pinentry {
+func NewPinentryClient() pinentry {
+	path := "pinentry"
+	if runtime.GOOS == "windows" {
+		path += ".exe"
+	} else if runtime.GOOS == "darwin" {
+		path += "-mac"
+	}
 	cmd := exec.Command(path)
 	in, err := cmd.StdinPipe()
 	if err != nil {
