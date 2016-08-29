@@ -3,10 +3,9 @@ package agent
 import (
 	"bufio"
 	"bytes"
-	"errors"
+	"fmt"
 	"io"
 	"os/exec"
-	"strings"
 )
 
 type pinentry interface {
@@ -18,7 +17,7 @@ type pinentry interface {
 	SetError(errorMsg string)
 	SetQualityBar()
 	SetQualityBarTT(tt string)
-	GetPin() (pin string, err error)
+	GetPin() (pin []byte, err error)
 	Confirm() bool
 	Close()
 }
@@ -113,13 +112,20 @@ func (c *pinentryClient) Confirm() bool {
 	return confirmed
 }
 
-//XXX Shouldn't we always use []byte for pin?
-// what for if only first line is used
-func (c *pinentryClient) GetPin() (pin string, err error) {
+func (c *pinentryClient) GetPin() (pin []byte, err error) {
 	c.in.Write([]byte("GETPIN\n"))
 	// D pin
 	d_pin, _, err := c.pipe.ReadLine()
-	return asRawData(string(d_pin))
+	if bytes.Compare(d_pin[:2], []byte("D ")) == 0 {
+		ok, _, _ := c.pipe.ReadLine()
+		if bytes.Compare(ok, []byte("OK")) != 0 {
+			panic(string(ok))
+		}
+		return d_pin[2:], nil
+	} else if bytes.Compare(d_pin[:2], []byte("OK")) == 0 {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("unexpected response for GetPin: %s", d_pin)
 }
 
 func (c *pinentryClient) Close() {
@@ -157,12 +163,4 @@ func NewPinentryClient(path string) pinentry {
 	pinentry.SetOK("Ok")
 
 	return pinentry
-}
-
-func asRawData(raw string) (data string, err error) {
-	if !strings.HasPrefix(raw, "D ") {
-		return "", errors.New("This is not a raw data line.")
-	}
-	data = strings.TrimPrefix(raw, "D ")
-	return
 }

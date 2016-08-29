@@ -1,7 +1,7 @@
 default: test build
 
 test:
-	godep go test ./...
+	godep go test -v ./...
 
 build:
 	godep go build
