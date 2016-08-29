@@ -2,7 +2,9 @@ package agent
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"os"
 	"testing"
 
 	"golang.org/x/crypto/openpgp/armor"
@@ -108,10 +110,10 @@ Y1BI8y3j3y6KhA==
 
 func TestAgentDecryptUnsignedMessage(t *testing.T) {
 	//Private key 1CADF401 is in nyms-datadir
-	keymgr.Load(&keymgr.Conf{
+	defer keymgr.UseAndRestore(&keymgr.Conf{
 		GPGConfDir:  "../testdata/gpg-datadir",
 		NymsConfDir: "../testdata/nyms-datadir",
-	})
+	})()
 
 	armored := bytes.NewBufferString(encryptedData)
 	block, err := armor.Decode(armored)
@@ -147,10 +149,10 @@ func TestAgentDecryptUnsignedMessage(t *testing.T) {
 func TestAgentDecryptSignedMessage(t *testing.T) {
 	//Private key 1CADF401 is in nyms-datadir
 	//Public Key A2155668 is in nyms-datadir
-	keymgr.Load(&keymgr.Conf{
+	defer keymgr.UseAndRestore(&keymgr.Conf{
 		GPGConfDir:  "../testdata/gpg-datadir",
 		NymsConfDir: "../testdata/nyms-datadir",
-	})
+	})()
 
 	armored := bytes.NewBufferString(encryptedAndSignedData)
 	block, err := armor.Decode(armored)
@@ -189,10 +191,10 @@ func TestAgentDecryptSignedMessage(t *testing.T) {
 
 func TestAgentVerifySignedMessage(t *testing.T) {
 	//Public Key A2155668 is in nyms-datadir
-	keymgr.Load(&keymgr.Conf{
+	defer keymgr.UseAndRestore(&keymgr.Conf{
 		GPGConfDir:  "../testdata/gpg-datadir",
 		NymsConfDir: "../testdata/nyms-datadir",
-	})
+	})()
 
 	armored := bytes.NewBufferString(compressedSignedData)
 	block, err := armor.Decode(armored)
@@ -231,10 +233,10 @@ func TestAgentVerifySignedMessage(t *testing.T) {
 
 func TestAgentEncryptWithoutSigning(t *testing.T) {
 	//Public key 1CADF401 is in nyms-datadir
-	keymgr.Load(&keymgr.Conf{
+	defer keymgr.UseAndRestore(&keymgr.Conf{
 		GPGConfDir:  "../testdata/gpg-datadir",
 		NymsConfDir: "../testdata/nyms-datadir",
-	})
+	})()
 
 	expectedMessage := "hello"
 
@@ -280,10 +282,10 @@ func TestAgentEncryptWithoutSigning(t *testing.T) {
 func TestAgentEncryptWithSigning(t *testing.T) {
 	//Public key 1CADF401 is in nyms-datadir
 	//Private key A2155668 is in nyms-datadir
-	keymgr.Load(&keymgr.Conf{
+	defer keymgr.UseAndRestore(&keymgr.Conf{
 		GPGConfDir:  "../testdata/gpg-datadir",
 		NymsConfDir: "../testdata/nyms-datadir",
-	})
+	})()
 
 	expectedMessage := "hello"
 	in := bytes.NewBufferString(expectedMessage)
@@ -334,10 +336,10 @@ func (*nopReadWriterCloser) Close() error {
 
 func TestAgentSign(t *testing.T) {
 	//Private key A2155668 is in nyms-datadir
-	keymgr.Load(&keymgr.Conf{
+	defer keymgr.UseAndRestore(&keymgr.Conf{
 		GPGConfDir:  "../testdata/gpg-datadir",
 		NymsConfDir: "../testdata/nyms-datadir",
-	})
+	})()
 
 	expectedMessage := "hello"
 	enc := &nopReadWriterCloser{new(bytes.Buffer)}

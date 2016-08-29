@@ -62,26 +62,29 @@ func defaultConf() (*Conf, error) {
 }
 
 //Load initializes the keyrings used by the keymanager
-func Load(conf *Conf) (err error) {
+func Load(conf *Conf) {
+	var err error
+
 	if conf == nil {
 		if currentConf == nil {
 			conf, err = defaultConf()
+			if err != nil {
+				panic(err)
+			}
 		} else {
 			conf = currentConf
-		}
-		if err != nil {
-			panic(err)
 		}
 	}
 
 	defaultKeys, err = loadKeySourceAt(conf.GPGConfDir)
 	if err != nil {
-		return
+		logger.Warningf("failed to load keys from GPG dir: %v", err)
 	}
 
 	internalKeys, err = loadKeySourceAt(conf.NymsConfDir)
 	if err != nil {
-		return
+		//XXX Is there any unrecoverable error here?
+		logger.Warningf("failed to load keys from nyms dir: %v", err)
 	}
 
 	locker.KeySource = &combinedKeySource{[]KeySource{
@@ -89,7 +92,12 @@ func Load(conf *Conf) (err error) {
 	}}
 
 	currentConf = conf
-	return
+}
+
+func UseAndRestore(c *Conf) func() {
+	previous := currentConf
+	Load(c)
+	return func() { Load(previous) }
 }
 
 func loadKeySourceAt(rootPath string) (*keyStore, error) {

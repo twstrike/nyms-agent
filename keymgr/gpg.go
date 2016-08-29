@@ -13,6 +13,7 @@ func loadKeyringFile(path string) (openpgp.EntityList, error) {
 		return nil, err
 	}
 	defer f.Close()
+
 	el, err := openpgp.ReadKeyRing(f)
 	if err != nil {
 		return nil, err

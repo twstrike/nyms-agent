@@ -10,7 +10,9 @@ import (
 )
 
 func TestInternalKeyring(t *testing.T) {
-	internalKeys, _ := loadKeySourceAt("../testdata/nyms-datadir")
+	defer UseAndRestore(&Conf{
+		NymsConfDir: "../testdata/nyms-datadir",
+	})()
 
 	_, err := internalKeys.GetSecretKey("agent@nyms.io")
 	if err != nil {
@@ -19,7 +21,12 @@ func TestInternalKeyring(t *testing.T) {
 }
 
 func TestGenerateKey(t *testing.T) {
-	internalKeys, _ = loadKeySourceAt("../testdata/tmp")
+	os.Remove("../testdata/tmp/pubring.gpg")
+	os.Remove("../testdata/tmp/secring.gpg")
+	defer UseAndRestore(&Conf{
+		NymsConfDir: "../testdata/tmp",
+	})()
+
 	e, err := generateNewKey("foo", "", "foo@bar.com", openpgpTestConfig(), []byte("pass"))
 	if err != nil {
 		t.Errorf("error generating key %v", err)
@@ -36,10 +43,10 @@ func TestGenerateKey(t *testing.T) {
 }
 
 func TestForget(t *testing.T) {
-	internalKeys, err := loadKeySourceAt("../testdata/nyms-datadir")
-	if err != nil {
-		t.Errorf("error load key %s", err)
-	}
+	defer UseAndRestore(&Conf{
+		NymsConfDir: "../testdata/nyms-datadir",
+	})()
+
 	e, err := internalKeys.GetSecretKey("agent@nyms.io")
 	if e == nil {
 		t.Errorf("error looking up key %s", err)
@@ -58,8 +65,11 @@ func TestForget(t *testing.T) {
 func TestKeyManager(t *testing.T) {
 	os.Remove("../testdata/tmp/pubring.gpg")
 	os.Remove("../testdata/tmp/secring.gpg")
-	manager, _ := loadKeySourceAt("../testdata/tmp")
+	defer UseAndRestore(&Conf{
+		NymsConfDir: "../testdata/tmp",
+	})()
 
+	manager := internalKeys
 	_, err := manager.GetSecretKey("secret@nyms.io")
 	if err == nil {
 		t.Errorf("entity should not exist")
@@ -80,8 +90,16 @@ func TestKeyManager(t *testing.T) {
 		t.Errorf("error creating entity: %s", err)
 	}
 
-	e.SelfSignIdentities(nil)
-	e.DirectSignSubkeys(nil)
+	err = e.SelfSignIdentities(nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	err = e.DirectSignSubkeys(nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
 	err = manager.AddPrivate(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)
@@ -120,15 +138,26 @@ func TestKeyManager(t *testing.T) {
 func TestKeyManagerRemove(t *testing.T) {
 	os.Remove("../testdata/tmp/pubring.gpg")
 	os.Remove("../testdata/tmp/secring.gpg")
-	manager, _ := loadKeySourceAt("../testdata/tmp")
+	defer UseAndRestore(&Conf{
+		NymsConfDir: "../testdata/tmp",
+	})()
 
+	manager := internalKeys
 	e, err := openpgp.NewEntity("name", "comment", "secret@nyms.io", nil)
 	if err != nil {
 		t.Errorf("error creating entity: %s", err)
 	}
 
-	e.SelfSignIdentities(nil)
-	e.DirectSignSubkeys(nil)
+	err = e.SelfSignIdentities(nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	err = e.DirectSignSubkeys(nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
 	err = manager.AddPrivate(e)
 	if err != nil {
 		t.Errorf("error adding entity: %s", err)
