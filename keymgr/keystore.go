@@ -144,25 +144,29 @@ func entityMatchesEmail(email string, e *openpgp.Entity) bool {
 //The entitie's Itentities must be self-signed and the subkeys must have a
 //direct key signature.
 func (store *keyStore) AddPrivate(e *openpgp.Entity) error {
-	defer store.load()
-
 	err := store.addPublicKey(e)
 	if err != nil {
 		return err
 	}
 
-	return store.addPrivateKey(e)
+	err = store.addPrivateKey(e)
+	if err != nil {
+		return err
+	}
+
+	return store.load()
 }
 
 func (store *keyStore) AddPublic(e *openpgp.Entity) error {
-	defer store.load()
+	err := store.addPublicKey(e)
+	if err != nil {
+		return err
+	}
 
-	return store.addPublicKey(e)
+	return store.load()
 }
 
 func (store *keyStore) RemovePrivate(e *openpgp.Entity) error {
-	defer store.load()
-
 	err := store.forgetPrivateAndSerialize(e)
 	if err != nil {
 		return err
@@ -170,7 +174,12 @@ func (store *keyStore) RemovePrivate(e *openpgp.Entity) error {
 
 	//XXX Is it really a good idea to remove both public and private keys when
 	//asked to remove private?
-	return store.RemovePublic(e)
+	err = store.RemovePublic(e)
+	if err != nil {
+		return err
+	}
+
+	return store.load()
 }
 
 func (store *keyStore) forgetPublicAndSerialize(e *openpgp.Entity) error {
@@ -212,9 +221,12 @@ func (store *keyStore) forgetPrivateAndSerialize(e *openpgp.Entity) error {
 }
 
 func (store *keyStore) RemovePublic(e *openpgp.Entity) error {
-	defer store.load()
+	err := store.forgetPublicAndSerialize(e)
+	if err != nil {
+		return err
+	}
 
-	return store.forgetPublicAndSerialize(e)
+	return store.load()
 }
 
 const (
