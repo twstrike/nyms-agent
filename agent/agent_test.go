@@ -2,12 +2,12 @@ package agent
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"testing"
 
 	"golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp/packet"
 
 	"github.com/twstrike/nyms-agent/keymgr"
 )
@@ -379,4 +379,38 @@ func TestAgentSign(t *testing.T) {
 	if m.SignatureError != nil {
 		t.Errorf("unexpected error: %s", m.SignatureError)
 	}
+}
+
+func TestAgentSignIdentity(t *testing.T) {
+	os.Remove("../testdata/tmp/pubring.gpg")
+	os.Remove("../testdata/tmp/secring.gpg")
+	defer keymgr.UseAndRestore(&keymgr.Conf{
+		NymsConfDir: "../testdata/tmp",
+	})()
+
+	secret, err := GenerateNewKey("", "", "secret@key", nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	public, err := GenerateNewKey("", "", "public@key", nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	err = SignIdentity("<public@key>", public, secret)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	identity, _ := public.Identities["<public@key>"]
+	for _, s := range identity.Signatures {
+		if s.SigType == packet.SigTypeGenericCert &&
+			s.IssuerKeyId != nil &&
+			*s.IssuerKeyId == secret.PrimaryKey.KeyId {
+			return // FOUND
+		}
+	}
+
+	t.Error("could not find identity signature")
 }

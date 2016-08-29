@@ -267,6 +267,13 @@ func UpdateExpirationFor(keyId string, expirationSecs uint32) (bool, error) {
 	return true, nil
 }
 
+//XXX Should it sign ALL identities?
+func SignIdentity(identity string, from *openpgp.Entity, signer *openpgp.Entity) error {
+	//XXX You cant specify a signatureType depending on how carefully you've verified the fingerprint
+	//XXX How shoudl we choose the Hash and Cipher? Just use defaults?
+	return from.SignIdentity(identity, signer, openpgpConfig())
+}
+
 func primaryIdentity(e *openpgp.Entity) *openpgp.Identity {
 	var firstIdentity *openpgp.Identity
 	for _, ident := range e.Identities {
