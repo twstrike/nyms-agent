@@ -28,6 +28,7 @@ type pinentryClient struct {
 	pipe *bufio.Reader
 }
 
+// set descriptive text to display
 func (c *pinentryClient) SetDesc(desc string) {
 	c.in.Write([]byte("SETDESC " + desc + "\n"))
 	// ok
@@ -37,6 +38,7 @@ func (c *pinentryClient) SetDesc(desc string) {
 	}
 }
 
+// set desciption for user
 func (c *pinentryClient) SetPrompt(prompt string) {
 	c.in.Write([]byte("SETPROMPT " + prompt + "\n"))
 	// ok
@@ -112,6 +114,7 @@ func (c *pinentryClient) Confirm() bool {
 }
 
 //XXX Shouldn't we always use []byte for pin?
+// what for if only first line is used
 func (c *pinentryClient) GetPin() (pin string, err error) {
 	c.in.Write([]byte("GETPIN\n"))
 	// D pin
@@ -144,7 +147,16 @@ func NewPinentryClient(path string) pinentry {
 	if bytes.Compare(welcome[:2], []byte("OK")) != 0 {
 		panic(string(welcome))
 	}
-	return &pinentryClient{in, bufout}
+
+	pinentry := &pinentryClient{in, bufout}
+
+	//Setup default layout
+	pinentry.SetTitle("Nyms-agent pinentry")
+	pinentry.SetDesc("Nyms-agent asking for your passphrase...")
+	pinentry.SetPrompt("Enter passphrase, please:")
+	pinentry.SetOK("Ok")
+
+	return pinentry
 }
 
 func asRawData(raw string) (data string, err error) {
