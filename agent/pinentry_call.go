@@ -1,82 +1,150 @@
 package agent
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
 	"io"
 	"os/exec"
-	"bufio"
-  "fmt"
-	"errors"
 	"strings"
 )
 
-type Pinentry struct {
-	input io.WriteCloser
-	output io.ReadCloser
-	cmd exec.Cmd
+type pinentry interface {
+	SetDesc(desc string)
+	SetPrompt(prompt string)
+	SetTitle(title string)
+	SetOK(ok string)
+	SetCancel(cancel string)
+	SetError(errorMsg string)
+	SetQualityBar()
+	SetQualityBarTT(tt string)
+	GetPin() (pin string, err error)
+	Confirm() bool
+	Close()
 }
 
-func NewPinentry() (*Pinentry, error) {
-	cmd := *exec.Command("pinentry")
+type pinentryClient struct {
+	in   io.WriteCloser
+	pipe *bufio.Reader
+}
 
+func (c *pinentryClient) SetDesc(desc string) {
+	c.in.Write([]byte("SETDESC " + desc + "\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) SetPrompt(prompt string) {
+	c.in.Write([]byte("SETPROMPT " + prompt + "\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) SetTitle(title string) {
+	c.in.Write([]byte("SETTITLE " + title + "\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) SetOK(okLabel string) {
+	c.in.Write([]byte("SETOK " + okLabel + "\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) SetCancel(cancelLabel string) {
+	c.in.Write([]byte("SETCANCEL " + cancelLabel + "\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) SetError(errorMsg string) {
+	c.in.Write([]byte("SETERROR " + errorMsg + "\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) SetQualityBar() {
+	c.in.Write([]byte("SETQUALITYBAR\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) SetQualityBarTT(tt string) {
+	c.in.Write([]byte("SETQUALITYBAR_TT" + tt + "\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) != 0 {
+		panic(string(ok))
+	}
+}
+
+func (c *pinentryClient) Confirm() bool {
+	confirmed := false
+	c.in.Write([]byte("CONFIRM\n"))
+	// ok
+	ok, _, _ := c.pipe.ReadLine()
+	if bytes.Compare(ok, []byte("OK")) == 0 {
+		confirmed = true
+	}
+	return confirmed
+}
+
+//XXX Shouldn't we always use []byte for pin?
+func (c *pinentryClient) GetPin() (pin string, err error) {
+	c.in.Write([]byte("GETPIN\n"))
+	// D pin
+	d_pin, _, err := c.pipe.ReadLine()
+	return asRawData(string(d_pin))
+}
+
+func (c *pinentryClient) Close() {
+	c.in.Close()
+	return
+}
+
+func NewPinentryClient(path string) pinentry {
+	cmd := exec.Command(path)
 	in, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-
 	out, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-
+	bufout := bufio.NewReader(out)
 	err = cmd.Start()
-
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-
-	fmt.Printf("%s\n", readLine(out))
-
-	return &Pinentry {
-		input : in,
-		output: out,
-		cmd: cmd,
-	}, err
-}
-
-func (p Pinentry) Close() {
-	p.input.Close()
-  // XXX verify error. if it does fail should the process be killed?
-	p.cmd.Wait()
-}
-
-func (p *Pinentry) InvokeGetPin() (pin string, err error) {
-	p.input.Write([]byte("getpin\n"))
- 	rawDataFlag := readLine(p.output)
-
-	pin, err = asRawData(rawDataFlag)
-	if err != nil {
-		return "", err
+	// welcome
+	welcome, _, _ := bufout.ReadLine()
+	if bytes.Compare(welcome[:2], []byte("OK")) != 0 {
+		panic(string(welcome))
 	}
-
-	//  Verify execution was succesful.
-	//  This is hanging from time to time but don't understand why.
-	
-//	s := bufio.NewScanner(p.output)
-//	var okFlag string
-//	fmt.Println("1-----------")
-//	s.Scan()
-//	if err = s.Err(); err != nil {
-//		return "", err
-//	}
-//		fmt.Println("2-----------")
-//		okFlag = s.Text()
-//
-//	if !isExecGood(okFlag) {
-//		fmt.Print("3-----------")
-//		return "", errors.New("Execution failed")
-//	}
-//	
-	return
+	return &pinentryClient{in, bufout}
 }
 
 func asRawData(raw string) (data string, err error) {
@@ -84,19 +152,5 @@ func asRawData(raw string) (data string, err error) {
 		return "", errors.New("This is not a raw data line.")
 	}
 	data = strings.TrimPrefix(raw, "D ")
-	return 
-}
-
-func isExecGood(data string) bool {
-	return data == "OK"
-}
-
-func readLine(reader io.Reader) (line string) {
-	b := bufio.NewReader(reader)
-	lineByte, _, err := b.ReadLine()
-	if err != nil {
-    return "failed to flush output"
-	}
-	
-	return string(lineByte)
+	return
 }
