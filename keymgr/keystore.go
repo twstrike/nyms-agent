@@ -188,11 +188,14 @@ func (store *keyStore) forgetPublicAndSerialize(e *openpgp.Entity) error {
 		return err
 	}
 
+	return store.storePublicEntities()
+}
+
+func (store *keyStore) storePublicEntities() error {
 	path := filepath.Join(store.rootPath, pubring)
 	return serializeAndOverwrite(path, func(w io.Writer) error {
 		for _, e := range store.publicKeys {
-			err := e.Serialize(w)
-			if err != nil {
+			if err := e.Serialize(w); err != nil {
 				return err
 			}
 		}
@@ -207,11 +210,14 @@ func (store *keyStore) forgetPrivateAndSerialize(e *openpgp.Entity) error {
 		return err
 	}
 
+	return store.storePrivateEntities()
+}
+
+func (store *keyStore) storePrivateEntities() error {
 	path := filepath.Join(store.rootPath, secring)
 	return serializeAndOverwrite(path, func(w io.Writer) error {
 		for _, e := range store.secretKeys {
-			err := e.SerializePrivate(w, nil)
-			if err != nil {
+			if err := e.SerializePrivate(w, nil); err != nil {
 				return err
 			}
 		}
@@ -271,31 +277,17 @@ func loadKeyringAt(rootPath string) (openpgp.EntityList, openpgp.EntityList, err
 }
 
 func (store *keyStore) addPrivateKey(e *openpgp.Entity) error {
-	path := filepath.Join(store.rootPath, secring)
-	return serializeKey(e, path, func(w io.Writer) error {
-		return e.SerializePrivateWithoutSign(w)
-	})
+	//XXX make sure the entity is not already here
+	//XXX this is not thread safe
+	store.secretKeys = append(store.secretKeys, e)
+
+	return store.storePrivateEntities()
 }
 
 func (store *keyStore) addPublicKey(e *openpgp.Entity) error {
-	path := filepath.Join(store.rootPath, pubring)
-	return serializeKey(e, path, func(w io.Writer) error {
-		return e.Serialize(w)
-	})
-}
+	//XXX make sure the entity is not already here
+	//XXX this is not thread safe
+	store.publicKeys = append(store.publicKeys, e)
 
-//XXX If the entity is already in the file it will be duplicated now. (oh, life)
-func serializeKey(e *openpgp.Entity, path string, writeKey func(io.Writer) error) error {
-	lock := &sync.Mutex{}
-	lock.Lock()
-	defer lock.Unlock()
-
-	flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
-	f, err := os.OpenFile(path, flags, 0666)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return writeKey(f)
+	return store.storePublicEntities()
 }
