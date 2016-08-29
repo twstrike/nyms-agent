@@ -553,7 +553,7 @@ func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey, config *Config) (err e
 func (sig *Signature) SignUserId(id string, pub *PublicKey, priv *PrivateKey, config *Config) error {
 	h, err := userIdSignatureHash(id, pub, sig.Hash)
 	if err != nil {
-		return nil
+		return err // This was a bug
 	}
 	return sig.Sign(h, priv, config)
 }
