@@ -22,7 +22,7 @@ func main() {
 	getVersion(c)
 	getPublicKeyRing(c)
 	getSecretKeyRing(c)
-	updateKeyExpiration(c)
+	// updateKeyExpiration(c)
 	generatedKey := generateKeys(c)
 	getPublicKeyRing(c)
 	getSecretKeyRing(c)
