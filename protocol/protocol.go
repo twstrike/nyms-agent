@@ -9,6 +9,7 @@ import (
 	"net/rpc/jsonrpc"
 
 	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
 
 	gl "github.com/op/go-logging"
 	"github.com/twstrike/nyms-agent/agent"
@@ -285,4 +286,27 @@ func (*Protocol) KeyserverGet(args types.KeyServerSearchArgs, result *bool) erro
 func (*Protocol) ImportEntities(args types.ImportEntities, result *types.VoidArg) error {
 	logger.Info("Processing.ImportEntities")
 	return agent.ImportArmoredEntities(bytes.NewBufferString(args.ArmoredEntities))
+}
+
+func (*Protocol) ExportEntities(args types.ExportEntities, result *types.ExportEntitiesResult) error {
+	logger.Info("Processing.ExportEntities")
+
+	dst := new(bytes.Buffer)
+	defer func() {
+		result.Output = dst.Bytes()
+	}()
+
+	var w io.Writer = dst
+	if args.ArmoredOutput {
+		armored, err := armor.Encode(dst, openpgp.PublicKeyType, nil)
+		if err != nil {
+			return err
+		}
+		defer armored.Close()
+
+		w = armored
+	}
+
+	//XXX TODO filter keys
+	return agent.ExportEntities(w, agent.GetPublicKeyRing())
 }

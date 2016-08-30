@@ -93,3 +93,13 @@ type KeyserverLookupResult struct {
 type ImportEntities struct {
 	ArmoredEntities string
 }
+
+type ExportEntities struct {
+	//XXX How should we filter the entities?
+
+	ArmoredOutput bool
+}
+
+type ExportEntitiesResult struct {
+	Output []byte
+}
