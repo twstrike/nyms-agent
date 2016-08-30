@@ -160,12 +160,23 @@ func generateNewKey(name, comment, email string, config *packet.Config, passphra
 		return nil, err
 	}
 
+	//XXX This should not be part of serialization. That's why it's explicitly
+	//called here.
+	err = e.SelfSignIdentities(config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = e.DirectSignSubkeys(config)
+	if err != nil {
+		return nil, err
+	}
+
 	if passphrase != nil && len(passphrase) != 0 {
 		encryptPrivateKey(e, passphrase)
 	}
 
-	internalKeys.AddPrivate(e)
-	return e, nil
+	return e, internalKeys.AddPrivate(e)
 }
 
 func nymsPath(fname string) string {

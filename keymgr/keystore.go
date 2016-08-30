@@ -217,7 +217,7 @@ func (store *keyStore) storePrivateEntities() error {
 	path := filepath.Join(store.rootPath, secring)
 	return serializeAndOverwrite(path, func(w io.Writer) error {
 		for _, e := range store.secretKeys {
-			if err := e.SerializePrivate(w, nil); err != nil {
+			if err := e.SerializePrivateWithoutSign(w); err != nil {
 				return err
 			}
 		}
