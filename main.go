@@ -12,6 +12,10 @@ import (
 	"github.com/twstrike/nyms-agent/protocol"
 )
 
+const (
+	defaultDaemonAddress = "/var/run/nyms/nyms.socket"
+)
+
 var pipe bool
 var daemonEnabled bool
 var guiEnabled bool
@@ -39,11 +43,17 @@ func main() {
 			go protocol.Serve(pp)
 		}
 	case daemonEnabled:
-		log.Println("Listening on /tmp/nyms.sock ...")
-		l, err := net.Listen("unix", "/tmp/nyms.sock")
+		err := os.Remove(defaultDaemonAddress)
+		if err != nil && !os.IsNotExist(err) {
+			log.Fatal(err)
+			os.Exit(-1)
+		}
+
+		log.Printf("Listening on %s...", defaultDaemonAddress)
+		l, err := net.Listen("unix", defaultDaemonAddress)
 		if err != nil {
 			log.Fatal(err)
-			return
+			os.Exit(-1)
 		}
 
 		defer l.Close()
