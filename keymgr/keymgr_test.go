@@ -72,17 +72,17 @@ func TestKeyManager(t *testing.T) {
 	manager := internalKeys
 	_, err := manager.GetSecretKey("secret@nyms.io")
 	if err == nil {
-		t.Errorf("entity should not exist")
+		t.Errorf("entity should NOT exist")
 	}
 
 	_, err = manager.GetPublicKey("secret@nyms.io")
 	if err == nil {
-		t.Errorf("entity should not exist")
+		t.Errorf("entity should NOT exist")
 	}
 
 	_, err = manager.GetPublicKey("public@nyms.io")
 	if err == nil {
-		t.Errorf("entity should not exist")
+		t.Errorf("entity should NOT exist")
 	}
 
 	e, err := openpgp.NewEntity("name", "comment", "secret@nyms.io", nil)
@@ -105,20 +105,6 @@ func TestKeyManager(t *testing.T) {
 		t.Errorf("error adding entity: %s", err)
 	}
 
-	e, err = openpgp.NewEntity("name", "comment", "public@nyms.io", nil)
-	if err != nil {
-		t.Errorf("error creating entity: %s", err)
-	}
-
-	//XXX Why serializing fails if this is missing?
-	e.SelfSignIdentities(nil)
-	e.DirectSignSubkeys(nil)
-
-	err = manager.AddPublic(e)
-	if err != nil {
-		t.Errorf("error adding entity: %s", err)
-	}
-
 	_, err = manager.GetSecretKey("secret@nyms.io")
 	if err != nil {
 		t.Errorf("entity should exist: %s", err)
@@ -127,6 +113,26 @@ func TestKeyManager(t *testing.T) {
 	_, err = manager.GetPublicKey("secret@nyms.io")
 	if err != nil {
 		t.Errorf("entity should exist: %s", err)
+	}
+
+	e, err = openpgp.NewEntity("name", "comment", "public@nyms.io", nil)
+	if err != nil {
+		t.Errorf("error creating entity: %s", err)
+	}
+
+	err = e.SelfSignIdentities(nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	err = e.DirectSignSubkeys(nil)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	err = manager.AddPublic(e)
+	if err != nil {
+		t.Errorf("error adding entity: %s", err)
 	}
 
 	_, err = manager.GetPublicKey("public@nyms.io")
