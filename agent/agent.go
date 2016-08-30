@@ -34,16 +34,30 @@ func UnlockPrivateKey(keyID string) error {
 	if err != nil {
 		return err
 	}
+
 	c, err := NewPinentryClient()
 	defer c.Close()
 	if err != nil {
 		return err
 	}
+
+	//XXX We should display a message containing the keyID
+	//otherwise I would not know which passphrase you are asking me
 	passphrase, err := c.GetPin()
 	if err != nil {
 		return err
 	}
+
 	return keymgr.GetKeyLocker().UnlockSecretKeyById(id, passphrase)
+}
+
+func ImportArmoredEntities(armored io.Reader) error {
+	entities, err := openpgp.ReadArmoredKeyRing(armored)
+	if err != nil {
+		return err
+	}
+
+	return keymgr.GetKeyManager().AddAll(entities)
 }
 
 func PublishToKeyserver(longKeyID, serverAddress string) error {
