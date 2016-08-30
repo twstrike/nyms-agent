@@ -29,8 +29,17 @@ func GenerateNewKey(name, comment, email string, passphrase []byte) (*openpgp.En
 	return keymgr.GenerateNewKey(name, comment, email, passphrase)
 }
 
-func UnlockPrivateKey(keyID string, passphrase []byte) error {
+func UnlockPrivateKey(keyID string) error {
 	id, err := decodeKeyId(keyID)
+	if err != nil {
+		return err
+	}
+	c, err := NewPinentryClient()
+	defer c.Close()
+	if err != nil {
+		return err
+	}
+	passphrase, err := c.GetPin()
 	if err != nil {
 		return err
 	}
@@ -75,7 +84,10 @@ func GetEntityByKeyId(keyId string) (*openpgp.Entity, error) {
 		return k, nil
 	}
 
-	return keymgr.GetKeyLocker().GetPublicKeyById(id), nil
+	if k := keymgr.GetKeyLocker().GetPublicKeyById(id); k != nil {
+		return k, nil
+	}
+	return nil, fmt.Errorf("KeyID:%s Not Found", keyId)
 }
 
 //XXX This should be replaced by a call to the pinentry as soon as Ivan is done.

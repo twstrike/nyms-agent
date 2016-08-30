@@ -120,15 +120,14 @@ func getKeyInfoByKeyId(c *rpc.Client, keyId string) types.GetKeyInfoResult {
 	if err != nil {
 		log.Fatal("GetKeyInfo error:", err)
 	}
-	fmt.Printf("gotKey: %v\n", keyId)
+	fmt.Printf("gotKey: %v\n", gotKey.KeyId)
 	return gotKey
 }
 
 func unlock(c *rpc.Client, keyId string) {
 	var unlockReturn bool
 	err := c.Call("Protocol.UnlockPrivateKey", types.UnlockPrivateKeyArgs{
-		KeyId:      keyId,
-		Passphrase: "pass",
+		KeyId: keyId,
 	}, &unlockReturn)
 	if err != nil {
 		log.Fatal("UnlockPrivateKey error:", err)

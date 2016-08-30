@@ -56,8 +56,7 @@ type ProcessOutgoingResult struct {
 }
 
 type UnlockPrivateKeyArgs struct {
-	KeyId      string
-	Passphrase string
+	KeyId string
 }
 
 type GenerateKeysArgs struct {

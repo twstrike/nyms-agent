@@ -200,7 +200,7 @@ func processOutgoingStatus(status *pgpmail.EncryptStatus, result *types.ProcessO
 
 func (*Protocol) UnlockPrivateKey(args types.UnlockPrivateKeyArgs, result *bool) error {
 	logger.Info("Processing.UnlockPrivateKey")
-	err := agent.UnlockPrivateKey(args.KeyId, []byte(args.Passphrase))
+	err := agent.UnlockPrivateKey(args.KeyId)
 
 	*result = (err == nil)
 	return err

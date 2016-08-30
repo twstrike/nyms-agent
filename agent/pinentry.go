@@ -134,7 +134,7 @@ func (c *pinentryClient) Close() {
 	return
 }
 
-func NewPinentryClient() pinentry {
+func NewPinentryClient() (pinentry, error) {
 	path := "pinentry"
 	if runtime.GOOS == "windows" {
 		path += ".exe"
@@ -156,7 +156,10 @@ func NewPinentryClient() pinentry {
 		panic(err)
 	}
 	// welcome
-	welcome, _, _ := bufout.ReadLine()
+	welcome, _, err := bufout.ReadLine()
+	if err != nil {
+		return nil, err
+	}
 	if bytes.Compare(welcome[:2], []byte("OK")) != 0 {
 		panic(string(welcome))
 	}
@@ -169,5 +172,5 @@ func NewPinentryClient() pinentry {
 	pinentry.SetPrompt("Enter passphrase, please:")
 	pinentry.SetOK("Ok")
 
-	return pinentry
+	return pinentry, nil
 }
