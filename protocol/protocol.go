@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -275,4 +276,13 @@ func (*Protocol) KeyserverGet(args types.KeyServerSearchArgs, result *bool) erro
 
 	*result = true
 	return nil
+}
+
+//
+// protocol.ImportEntities
+//
+
+func (*Protocol) ImportEntities(args types.ImportEntities, result *types.VoidArg) error {
+	logger.Info("Processing.ImportEntities")
+	return agent.ImportArmoredEntities(bytes.NewBufferString(args.ArmoredEntities))
 }

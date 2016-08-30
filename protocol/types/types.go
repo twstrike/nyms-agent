@@ -89,3 +89,7 @@ type KeyServerSearchArgs struct {
 type KeyserverLookupResult struct {
 	Indexes []*hkps.Index //XXX Is there any problem if this is a pointer?
 }
+
+type ImportEntities struct {
+	ArmoredEntities string
+}
