@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	conn, err := net.Dial("unix", "/tmp/nyms.sock")
+	conn, err := net.Dial("unix", "/var/run/nyms/nyms.socket")
 	if err != nil {
 		log.Fatal(err)
 		return
