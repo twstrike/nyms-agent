@@ -35,6 +35,8 @@ type KeySource interface {
 type KeyManager interface {
 	AddPrivate(*openpgp.Entity) error
 	AddPublic(*openpgp.Entity) error
+	AddAll(openpgp.EntityList) error
+
 	//Remove(*openpgp.Entity) error
 	//Update(*openpgp.Entity) error
 }

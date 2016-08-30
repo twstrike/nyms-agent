@@ -166,6 +166,39 @@ func (store *keyStore) AddPublic(e *openpgp.Entity) error {
 	return store.load()
 }
 
+func (store *keyStore) AddAll(l openpgp.EntityList) error {
+	//XXX This should merge the new entities with any existing
+	//but we dont know how to do it, so we're skipping existing entities rather
+	//than replacing them.
+	for _, e := range l {
+		if e.PrivateKey != nil {
+			if len(store.secretKeys.KeysById(e.PrimaryKey.KeyId)) != 0 {
+				continue
+			}
+
+			store.secretKeys = append(store.secretKeys, e)
+		}
+
+		if len(store.publicKeys.KeysById(e.PrimaryKey.KeyId)) != 0 {
+			continue
+		}
+
+		store.publicKeys = append(store.publicKeys, e)
+	}
+
+	err := store.storePublicEntities()
+	if err != nil {
+		return err
+	}
+
+	err = store.storePrivateEntities()
+	if err != nil {
+		return err
+	}
+
+	return store.load()
+}
+
 func (store *keyStore) RemovePrivate(e *openpgp.Entity) error {
 	err := store.forgetPrivateAndSerialize(e)
 	if err != nil {
