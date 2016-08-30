@@ -60,6 +60,17 @@ func ImportArmoredEntities(armored io.Reader) error {
 	return keymgr.GetKeyManager().AddAll(entities)
 }
 
+func ExportEntities(w io.Writer, entities openpgp.EntityList) error {
+	for _, e := range entities {
+		err := e.Serialize(w)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func PublishToKeyserver(longKeyID, serverAddress string) error {
 	//XXX Should we allow filtering which Identities and Subkeys to publish?
 	key, err := GetEntityByKeyId(longKeyID)
